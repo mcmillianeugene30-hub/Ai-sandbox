@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Nexus AI-OS Dashboard</title>
+    <link rel="stylesheet" href="style.css">
+    <style>
+        body { background: #0a0a0a; color: #00ff41; font-family: 'Courier New', Courier, monospace; }
+        .dashboard-container { display: flex; flex-direction: column; height: 100vh; padding: 20px; }
+        .header { display: flex; justify-content: space-between; border-bottom: 2px solid #00ff41; padding-bottom: 10px; margin-bottom: 20px; }
+        .main-view { display: flex; flex: 1; gap: 20px; }
+        .agent-pills { display: flex; flex-direction: column; gap: 10px; width: 200px; }
+        .agent-pill { padding: 10px; border: 1px solid #333; border-radius: 5px; text-align: center; opacity: 0.5; }
+        .agent-pill.active { border-color: #00ff41; opacity: 1; box-shadow: 0 0 10px #00ff41; }
+        .terminal { flex: 1; background: #000; border: 1px solid #333; padding: 15px; overflow-y: auto; position: relative; }
+        .terminal-log { margin-bottom: 5px; line-height: 1.4; }
+        .log-researcher { color: #00d2ff; }
+        .log-coder { color: #ffae00; }
+        .log-reviewer { color: #ff00ff; }
+        .log-system { color: #888; }
+        .controls { margin-top: 20px; display: flex; gap: 10px; }
+        input { background: #111; border: 1px solid #00ff41; color: #00ff41; padding: 10px; flex: 1; }
+        button { background: #00ff41; color: #000; border: none; padding: 10px 20px; font-weight: bold; cursor: pointer; }
+        .status-bar { font-size: 0.8rem; margin-top: 10px; color: #555; }
+    </style>
+</head>
+<body>
+    <div class="dashboard-container">
+        <div class="header">
+            <div class="title">NEXUS AI-OS KERNEL v2.0</div>
+            <div class="status">SYSTEM: ONLINE</div>
+        </div>
+
+        <div class="main-view">
+            <div class="agent-pills">
+                <div id="pill-architect" class="agent-pill">ARCHITECT</div>
+                <div id="pill-devops" class="agent-pill">DEVOPS</div>
+                <div id="pill-planner" class="agent-pill">PLANNER</div>
+                <div id="pill-researcher" class="agent-pill">HIVE RESEARCH</div>
+                <div id="pill-coder" class="agent-pill">CODER</div>
+                <div id="pill-reviewer" class="agent-pill">REVIEWER</div>
+            </div>
+            <div class="terminal" id="terminal-body">
+                <div id="project-view" style="display: none; border-bottom: 1px solid #333; margin-bottom: 10px; padding-bottom: 10px;">
+                    <div style="font-weight: bold; margin-bottom: 5px;">🏗️ PROJECT ARCHITECTURE:</div>
+                    <div id="stack-info" style="color: #00d2ff; margin-bottom: 5px;">STACK: ...</div>
+                    <div id="project-tree" style="color: #ffae00; white-space: pre-wrap; font-size: 0.9rem;">STRUCTURE: ...</div>
+                </div>
+                <div class="terminal-log log-system">>> Kernel initialized. Waiting for instruction...</div>
+            </div>
+        </div>
+
+        <div class="controls">
+            <input type="text" id="task-input" placeholder="Enter high-level goal for Project Nexus...">
+            <button id="execute-btn">EXECUTE WORKFLOW</button>
+        </div>
+        <div class="status-bar">MODELS: GROQ/LLAMA-3.3-70B | STORAGE: CHROMADB | OS: NEXUS-K1</div>
+    </div>
+
+    <script>
+        const terminalBody = document.getElementById('terminal-body');
+        const taskInput = document.getElementById('task-input');
+        const executeBtn = document.getElementById('execute-btn');
+        const pills = {
+            architect: document.getElementById('pill-architect'),
+            devops: document.getElementById('pill-devops'),
+            planner: document.getElementById('pill-planner'),
+            researcher: document.getElementById('pill-researcher'),
+            coder: document.getElementById('pill-coder'),
+            reviewer: document.getElementById('pill-reviewer')
+        };
+        const projectView = document.getElementById('project-view');
+        const stackInfo = document.getElementById('stack-info');
+        const projectTree = document.getElementById('project-tree');
+
+        function updateProjectView(design) {
+            projectView.style.display = 'block';
+            stackInfo.textContent = `STACK: Frontend: ${design.stack.frontend}, Backend: ${design.stack.backend}, Database: ${design.stack.db}`;
+            projectTree.textContent = JSON.stringify(design.structure, null, 2);
+        }
+
+        executeBtn.onclick = async () => {
+            const task = taskInput.value;
+            if (!task) return;
+
+            addLog(`Triggering Full-Stack App Builder: "${task}"`, 'system');
+            executeBtn.disabled = true;
+            projectView.style.display = 'none';
+
+            // Start EventSource for streaming app-build updates
+            const eventSource = new EventSource(`http://localhost:8000/api/v1/nexus/app-build?task=${encodeURIComponent(task)}`);
+
+            eventSource.onmessage = (event) => {
+                const data = JSON.parse(event.data);
+                
+                if (data.type === 'agent_start') {
+                    setActiveAgent(data.agent);
+                    addLog(`Agent ${data.agent.toUpperCase()} activated.`, 'system');
+                } else if (data.type === 'design') {
+                    updateProjectView(data.design);
+                } else if (data.type === 'log') {
+                    addLog(data.message, data.agent);
+                } else if (data.type === 'error') {
+                    addLog(`CRITICAL ERROR: ${data.message}`, 'system');
+                    eventSource.close();
+                    executeBtn.disabled = false;
+                } else if (data.type === 'complete') {
+                    setActiveAgent(null);
+                    addLog(`FULL-STACK APP BUILD COMPLETE. Project saved to: ${data.project_path}`, 'system');
+                    eventSource.close();
+                    executeBtn.disabled = false;
+                }
+            };
+            // ... (onerror)
+        };
+    </script>
+</body>
+</html>
