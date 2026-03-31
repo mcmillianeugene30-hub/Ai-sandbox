@@ -1,0 +1,89 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>AI Sandbox - Developer Playground</title>
+    <link rel="stylesheet" href="style.css">
+    <!-- Monaco Editor styles via CDN -->
+    <link rel="stylesheet" data-name="vs/editor/editor.main" href="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.43.0/min/vs/editor/editor.main.min.css">
+</head>
+<body>
+    <header>
+        <div class="logo">AI Sandbox <span>v3.0</span></div>
+        <div class="controls">
+            <select id="provider-select">
+                <option value="gemini">Gemini</option>
+                <option value="groq">Groq</option>
+                <option value="openrouter">OpenRouter</option>
+                <option value="ollama">Ollama (Local)</option>
+            </select>
+            <select id="model-select"></select>
+            <input type="password" id="api-key" placeholder="API Key">
+            <label class="toggle-container">
+                <input type="checkbox" id="stream-toggle" checked>
+                <span>Stream</span>
+            </label>
+            <label class="toggle-container">
+                <input type="checkbox" id="kb-toggle">
+                <span>RAG</span>
+            </label>
+            <button id="run-btn">Run Code</button>
+            <button id="compare-btn" class="secondary-btn">Compare Mode</button>
+            <div class="dropdown">
+                <button class="dropbtn">Export</button>
+                <div class="dropdown-content">
+                    <a href="#" onclick="exportCode('react')">React Hook</a>
+                    <a href="#" onclick="exportCode('flutter')">Flutter Provider</a>
+                </div>
+            </div>
+            <button id="kb-btn" class="secondary-btn">KB</button>
+            <button id="analytics-btn" class="secondary-btn">Stats</button>
+        </div>
+    </header>
+    
+    <div id="kb-modal" class="modal">
+        <div class="modal-content">
+            <span class="close-kb close">&times;</span>
+            <h2>Knowledge Base (RAG)</h2>
+            <p>Upload PDFs or Text files to provide context to your AI calls.</p>
+            <input type="file" id="kb-file-input" accept=".pdf,.txt">
+            <button id="kb-upload-btn">Upload to Vector DB</button>
+            <div id="kb-status"></div>
+        </div>
+    </div>
+    
+    <div id="analytics-modal" class="modal">
+        <div class="modal-content">
+            <span class="close">&times;</span>
+            <h2>Usage Analytics</h2>
+            <div id="analytics-content">Loading...</div>
+        </div>
+    </div>
+    
+    <main id="single-view">
+        <div id="editor-container"></div>
+        <div id="output-panel">
+            <div class="panel-header">Console Output</div>
+            <pre id="output-content">Welcome to AI Sandbox v3. Click 'Run Code' to test your integration.</pre>
+        </div>
+    </main>
+
+    <main id="compare-view" style="display: none;">
+        <div class="compare-pane" id="pane-a">
+            <div class="pane-header">Model A (Current)</div>
+            <pre id="output-a" class="compare-output"></pre>
+        </div>
+        <div class="compare-pane" id="pane-b">
+            <div class="pane-header">Model B (Select Below)
+                <select id="compare-provider-select"></select>
+                <select id="compare-model-select"></select>
+            </div>
+            <pre id="output-b" class="compare-output"></pre>
+        </div>
+    </main>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.43.0/min/vs/loader.min.js"></script>
+    <script src="script.js"></script>
+</body>
+</html>
