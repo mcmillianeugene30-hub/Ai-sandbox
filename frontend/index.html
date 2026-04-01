@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>AI Sandbox - Developer Playground</title>
+    <title>Project Nexus — AI Sandbox</title>
     <link rel="stylesheet" href="style.css">
     <!-- Monaco Editor styles via CDN -->
     <link rel="stylesheet" data-name="vs/editor/editor.main" href="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.43.0/min/vs/editor/editor.main.min.css">
@@ -83,6 +83,13 @@
         </div>
     </main>
 
+    <!-- Render backend URL: set window.__NEXUS_API_URL__ before this script -->
+    <script>
+      // Vercel env injection: Vercel replaces @VITE_API_URL@ at build via vercel.json env
+      window.__NEXUS_API_URL__ = "VITE_API_URL" !== "VITE_API_URL"
+        ? "VITE_API_URL" : null;
+    </script>
+    <script src="config.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.43.0/min/vs/loader.min.js"></script>
     <script src="script.js"></script>
 </body>

@@ -34,7 +34,7 @@ let compareMode = false;
 
 async function loadModels() {
     try {
-        const res = await fetch('http://localhost:8000/api/v1/models');
+        const res = await fetch(window.NEXUS_API + '/models');
         const models = await res.json();
         
         function updateLists() {
@@ -84,7 +84,7 @@ const ai = {
             const stream = options.stream !== undefined ? options.stream : elements.stream.checked;
             const kb = options.kb_enabled !== undefined ? options.kb_enabled : elements.kb.checked;
 
-            const res = await fetch('http://localhost:8000/api/v1/chat/completions', {
+            const res = await fetch(window.NEXUS_API + '/chat/completions', {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/json', 'x-api-key': apiKey },
                 body: JSON.stringify({
@@ -185,7 +185,7 @@ elements.kbUpload.onclick = async () => {
     const formData = new FormData();
     formData.append('file', elements.kbFile.files[0]);
     try {
-        const res = await fetch('http://localhost:8000/api/v1/kb/upload', { method: 'POST', body: formData });
+        const res = await fetch(window.NEXUS_API + '/kb/upload', { method: 'POST', body: formData });
         if (res.ok) elements.kbStatus.textContent = "Success! Document vectorized.";
         else elements.kbStatus.textContent = "Error uploading document.";
     } catch (e) { elements.kbStatus.textContent = "Connection error."; }

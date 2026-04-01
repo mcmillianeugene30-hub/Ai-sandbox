@@ -23,7 +23,10 @@ class argon2:
         except _VME: return False
 
 import sys
-sys.path.append('/workspace/ai-sandbox/nexus-ai-os')
+NEXUS_OS_PATH = os.environ.get("NEXUS_OS_PATH",
+    os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "nexus-ai-os"))
+sys.path.append(NEXUS_OS_PATH)
+sys.path.append(os.path.dirname(os.path.abspath(__file__)))
 from core.kernel import NexusKernel
 from agents.architect import AppArchitectAgent
 from agents.devops import DevOpsAgent
@@ -69,10 +72,18 @@ TOPUP_PACKS = {
 app = FastAPI(title="Project Nexus API v7.1 — Subscription & Credits")
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="api/v1/auth/login")
 
-app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
+FRONTEND_URL = os.environ.get("FRONTEND_URL", "*")
+app.add_middleware(CORSMiddleware,
+    allow_origins=[FRONTEND_URL, "http://localhost:3000", "http://localhost:8080"],
+    allow_origin_regex=r"https://.*\.vercel\.app",
+    allow_methods=["*"], allow_headers=["*"], allow_credentials=True)
 
 # ─── DATABASE ─────────────────────────────────────────────────────────────────
-DB_PATH = "usage.db"
+# Render persistent disk mounts at /opt/render/project/src/data
+DATA_DIR = os.environ.get("RENDER_DISK_PATH",
+           os.path.join(os.path.dirname(os.path.abspath(__file__)), "data"))
+os.makedirs(DATA_DIR, exist_ok=True)
+DB_PATH = os.path.join(DATA_DIR, "usage.db")
 
 def init_db():
     conn = sqlite3.connect(DB_PATH)
@@ -420,6 +431,12 @@ async def stream_nexus_app_build(task: str, token: str):
     return StreamingResponse(gen(), media_type="text/event-stream")
 
 # ─── STATIC PRICING PAGE ──────────────────────────────────────────────────────
+@app.get("/health")
+async def health(): return {"status": "ok", "version": "7.1"}
+
+@app.get("/")
+async def root(): return {"name": "Project Nexus API", "version": "7.1", "docs": "/docs"}
+
 @app.get("/pricing", response_class=HTMLResponse)
 async def pricing_page():
     with open("../frontend/pricing.html","r") as f: return f.read()

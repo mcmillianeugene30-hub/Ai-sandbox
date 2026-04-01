@@ -4,6 +4,7 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <title>Nexus Admin — v7.1</title>
+<script src="../frontend/config.js" onerror="window.NEXUS_API='https://nexus-backend.onrender.com/api/v1'"></script>
 <style>
   @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Barlow+Condensed:wght@700;900&family=Barlow:wght@400;500&display=swap');
   :root{--bg:#050a0e;--card:#0f1c24;--border:#1a2f3a;--neon:#00ff88;--cyan:#00d4ff;--amber:#ffaa00;--red:#ff4455;--purple:#9d4edd;--text:#c8dde8;--muted:#4a6478;--mono:'Share Tech Mono',monospace;--head:'Barlow Condensed',sans-serif;}
@@ -240,7 +241,7 @@
 <div id="toast" class="toast"></div>
 
 <script>
-  const API = 'http://localhost:8000/api/v1';
+  const API = window.NEXUS_API || 'https://nexus-backend.onrender.com/api/v1';
   let token = localStorage.getItem('nexus_token');
   let me = null;
 
