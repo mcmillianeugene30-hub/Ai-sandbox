@@ -18,7 +18,7 @@ from typing import Optional, List, Dict, Any
 
 SWARM_DB = os.path.join(
     os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-    "core", "swarm.db"
+    "memory_db", "swarm.db"
 )
 
 # ─── SwarmBus ─────────────────────────────────────────────────────────────────

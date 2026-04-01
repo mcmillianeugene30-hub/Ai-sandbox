@@ -1,5 +1,12 @@
 import time
 import logging
+import os
+import sys
+
+# Import providers from backend
+current_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, current_dir)
+os.environ.setdefault("NEXUS_OS_PATH", current_dir)
 
 # Define the gemini process class
 class GeminiProcess:
@@ -50,6 +57,51 @@ class NexusKernel:
     def run(self):
         self.configure_logging()
         self.start_gemini_process()
+
+    async def chat_async(self, provider: str, model: str, messages: list, api_key: str = None) -> str:
+        """Async chat completion for AI provider communication"""
+        try:
+            from backend.providers import get_provider
+
+            # Get API key from environment if not provided
+            if not api_key:
+                api_key = os.environ.get(f"{provider.upper()}_API_KEY")
+
+            if not api_key and provider != "ollama":
+                raise ValueError(f"API key required for {provider}")
+
+            ai_provider = get_provider(provider)
+            if not ai_provider:
+                raise ValueError(f"Unknown provider: {provider}")
+
+            response = ai_provider.chat_complete(model, messages, api_key)
+            content = response.get("choices", [{}])[0].get("message", {}).get("content", "")
+            return content
+        except Exception as e:
+            logging.error(f"Chat async error: {e}")
+            raise
+
+    async def hive_poll(self, providers: list, messages: list) -> list:
+        """Poll multiple providers for consensus"""
+        results = []
+        for prov_config in providers:
+            try:
+                from backend.providers import get_provider
+
+                provider_name = prov_config.get("provider")
+                model = prov_config.get("model", "llama-3.3-70b-versatile")
+                api_key = os.environ.get(f"{provider_name.upper()}_API_KEY")
+
+                if provider_name == "ollama" or api_key:
+                    ai_provider = get_provider(provider_name)
+                    if ai_provider:
+                        response = ai_provider.chat_complete(model, messages, api_key)
+                        content = response.get("choices", [{}])[0].get("message", {}).get("content", "")
+                        results.append({"provider": provider_name, "content": content})
+            except Exception as e:
+                logging.error(f"Hive poll error for {prov_config}: {e}")
+
+        return results
 
 def main():
     kernel = NexusKernel()

@@ -1,0 +1,89 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+
+# Virtual Environment
+.venv/
+venv/
+ENV/
+env/
+
+# IDEs
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Databases
+*.db
+*.sqlite
+*.sqlite3
+usage.db
+backend/usage.db
+
+# ChromaDB
+chroma_db/
+backend/chroma_db/
+nexus-ai-os/memory_db/
+nexus-ai-os/core/swarm.db
+
+# Logs
+*.log
+logs/
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Environment variables
+.env
+.env.local
+.env.*.local
+
+# Uploads
+uploads/
+backend/uploads/
+*.pdf
+*.doc
+*.docx
+
+# Generated/Temporary files
+projects/
+nexus-ai-os/projects/
+*.tmp
+*.bak
+*.swp
+
+# AI Model files
+models/
+*.pkl
+*.pt
+*.pth
+*.onnx
+
+# Test coverage
+.coverage
+htmlcov/
+.pytest_cache/
+
+# Node modules (if any)
+node_modules/

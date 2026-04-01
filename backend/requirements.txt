@@ -1,20 +1,20 @@
-fastapi
-uvicorn[standard]
-pydantic
-python-dotenv
-python-multipart
+fastapi>=0.104.0
+uvicorn[standard]>=0.24.0
+pydantic>=2.0.0
+python-dotenv>=1.0.0
+python-multipart>=0.0.6
 # AI providers
-google-generativeai
-groq
-openai
-httpx
+google-generativeai>=0.5.0
+groq>=0.9.0
+openai>=1.0.0
+httpx>=0.25.0
 # Auth & security
-PyJWT
-argon2-cffi
+PyJWT>=2.8.0
+argon2-cffi>=23.0.0
 # RAG & embeddings
-chromadb
-sentence-transformers
-pypdf
-langchain-text-splitters
+chromadb>=0.4.0
+sentence-transformers>=2.2.0
+pypdf>=3.0.0
+langchain-text-splitters>=0.0.1
 # Static files
-aiofiles
+aiofiles>=23.0.0
