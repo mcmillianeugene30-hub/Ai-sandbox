@@ -1,7 +1,20 @@
 fastapi
-uvicorn
+uvicorn[standard]
+pydantic
+python-dotenv
+python-multipart
+# AI providers
 google-generativeai
 groq
 openai
-pydantic
-python-dotenv
+httpx
+# Auth & security
+PyJWT
+argon2-cffi
+# RAG & embeddings
+chromadb
+sentence-transformers
+pypdf
+langchain-text-splitters
+# Static files
+aiofiles

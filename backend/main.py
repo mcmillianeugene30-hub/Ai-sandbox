@@ -9,7 +9,18 @@ from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel
 import os, time, sqlite3, shutil, jwt
 from datetime import datetime, timedelta
-from passlib.hash import argon2
+from argon2 import PasswordHasher as _PH
+from argon2.exceptions import VerifyMismatchError as _VME
+_ph = _PH()
+
+class argon2:
+    @staticmethod
+    def hash(password: str) -> str:
+        return _ph.hash(password)
+    @staticmethod
+    def verify(password: str, hashed: str) -> bool:
+        try: return _ph.verify(hashed, password)
+        except _VME: return False
 
 import sys
 sys.path.append('/workspace/ai-sandbox/nexus-ai-os')

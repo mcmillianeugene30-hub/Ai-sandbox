@@ -1,25 +1,36 @@
-# Dockerfile for AI Sandbox & Nexus AI-OS
-FROM python:3.11-slim
+# ── Stage 1: base ─────────────────────────────────────────────────────────────
+FROM python:3.11-slim AS base
 
 WORKDIR /app
 
-# Install system dependencies
-RUN apt-get update && apt-get install -y \
-    curl \
-    git \
-    sqlite3 \
+# System deps
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    curl git sqlite3 build-essential \
     && rm -rf /var/lib/apt/lists/*
 
-# Install Python dependencies
-COPY backend/requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
-RUN pip install --no-cache-dir fastapi uvicorn argon2-cffi PyJWT python-multipart chromadb sentence-transformers pypdf langchain-text-splitters google-generativeai groq openai
+# ── Stage 2: dependencies ──────────────────────────────────────────────────────
+FROM base AS deps
 
-# Copy source code
-COPY . .
+COPY backend/requirements.txt /app/requirements.txt
+RUN pip install --no-cache-dir -r /app/requirements.txt
 
-# Expose port
+# ── Stage 3: final ─────────────────────────────────────────────────────────────
+FROM deps AS final
+
+# Copy all source code
+COPY . /app
+
+# Create runtime directories
+RUN mkdir -p /app/nexus-ai-os/projects \
+             /app/nexus-ai-os/memory_db \
+             /app/backend/uploads \
+             /app/backend/chroma_db
+
+# Set working dir to backend (where uvicorn runs)
+WORKDIR /app/backend
+
 EXPOSE 8000
 
-# Start backend
-CMD ["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8000"]
+ENV PYTHONPATH=/app
+
+CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "2"]
