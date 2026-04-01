@@ -1,0 +1,8 @@
+# Nexus AI OS - Agent System Requirements
+# These are in addition to backend/requirements.txt
+
+# Core
+python-dotenv
+
+# Note: Most dependencies are inherited from backend/requirements.txt
+# including: chromadb, sentence-transformers, langchain, etc.

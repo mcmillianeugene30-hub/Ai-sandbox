@@ -1,6 +1,10 @@
 import sys
 import os
-sys.path.append('/workspace/ai-sandbox/nexus-ai-os')
+
+# Get the current directory of this file
+current_dir = os.path.dirname(os.path.abspath(__file__))
+sys.path.insert(0, current_dir)
+
 from core.kernel import NexusKernel
 from agents.coder import CoderAgent
 

@@ -3,7 +3,9 @@ import os
 import json
 from typing import Dict, Any, List
 
-sys.path.append('/workspace/ai-sandbox/nexus-ai-os')
+current_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, current_dir)
+
 from tools.shell import ShellTool, PythonExecutor
 from core.memory_bank import memory_bank
 from tools.fs_tool import fs_tool

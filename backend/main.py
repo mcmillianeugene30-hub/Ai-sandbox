@@ -23,10 +23,14 @@ class argon2:
         except _VME: return False
 
 import sys
-NEXUS_OS_PATH = os.environ.get("NEXUS_OS_PATH",
-    os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "nexus-ai-os"))
-sys.path.append(NEXUS_OS_PATH)
-sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+
+# Set up Python path for nexus-ai-os imports
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+NEXUS_OS_PATH = os.environ.get("NEXUS_OS_PATH", os.path.join(PROJECT_ROOT, "nexus-ai-os"))
+if NEXUS_OS_PATH not in sys.path:
+    sys.path.insert(0, NEXUS_OS_PATH)
+if os.path.dirname(os.path.abspath(__file__)) not in sys.path:
+    sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 from core.kernel import NexusKernel
 from agents.architect import AppArchitectAgent
 from agents.devops import DevOpsAgent
@@ -39,6 +43,8 @@ from agents.auto_deploy import AutoDeployAgent
 from agents.model_researcher import AutonomousModelResearcher
 from core.swarm import SwarmBus, SwarmNode, SwarmOrchestrator
 from tools.fs_tool import fs_tool
+import providers
+from rag_manager import rag_manager
 
 # Shared swarm bus (singleton per process)
 _swarm_bus = SwarmBus()
@@ -262,6 +268,115 @@ async def login(form_data: OAuth2PasswordRequestForm = Depends()):
 async def get_me(user=Depends(get_user)):
     return user
 
+# ─── CHAT COMPLETION ENDPOINTS ─────────────────────────────────────────────────
+class ChatRequest(BaseModel):
+    provider: str
+    model: str
+    messages: List[Dict[str, str]]
+    temperature: float = 0.7
+    max_tokens: int = 1024
+    stream: bool = False
+    kb_enabled: bool = False
+
+@app.get("/models")
+async def get_models():
+    """Return available models for each provider"""
+    return {
+        "gemini": ["gemini-1.5-flash", "gemini-1.5-pro"],
+        "groq": ["llama-3.3-70b-versatile", "llama-3.1-8b-instant", "mixtral-8x7b-32768"],
+        "openrouter": ["gpt-4o", "claude-sonnet-4", "gpt-3.5-turbo"],
+        "ollama": ["llama3", "mistral", "phi3"]
+    }
+
+@app.post("/chat/completions")
+async def chat_completion(req: ChatRequest, x_api_key: str = Header(None)):
+    """Main chat completion endpoint with streaming and RAG support"""
+    api_key = x_api_key or os.environ.get(f"{req.provider.upper()}_API_KEY")
+
+    if not api_key and req.provider != "ollama":
+        raise HTTPException(401, f"API key required for {req.provider}. Set {req.provider.upper()}_API_KEY environment variable or provide x-api-key header.")
+
+    provider = providers.get_provider(req.provider)
+    if not provider:
+        raise HTTPException(400, f"Unknown provider: {req.provider}")
+
+    # RAG integration
+    if req.kb_enabled:
+        last_message = req.messages[-1]["content"]
+        context = rag_manager.query(last_message, n_results=3)
+        if context:
+            req.messages = [
+                {"role": "system", "content": f"Use the following context to answer:\n\n{context}"},
+                *req.messages[:-1],
+                {"role": "user", "content": f"Based on the context above, {req.messages[-1]['content']}"}
+            ]
+
+    start_time = time.time()
+
+    if req.stream:
+        async def generate():
+            try:
+                full_content = ""
+                async for chunk in provider.stream_complete(req.model, req.messages, api_key):
+                    yield chunk
+                    # Extract content for logging
+                    try:
+                        chunk_data = json.loads(chunk) if isinstance(chunk, str) else chunk
+                        if "choices" in chunk_data and "delta" in chunk_data["choices"][0]:
+                            full_content += chunk_data["choices"][0]["delta"].get("content", "")
+                    except:
+                        pass
+            except Exception as e:
+                yield f"data: {json.dumps({'error': str(e)})}\n\n"
+                raise
+        return StreamingResponse(generate(), media_type="text/event-stream")
+    else:
+        try:
+            response = provider.chat_complete(req.model, req.messages, api_key,
+                                            temperature=req.temperature, max_tokens=req.max_tokens)
+            latency_ms = int((time.time() - start_time) * 1000)
+            content = response.get("choices", [{}])[0].get("message", {}).get("content", "")
+            # Log usage (without user for now)
+            log_usage(0, req.provider, req.model, latency_ms, "success",
+                     req.messages[-1]["content"] if req.messages else "", content)
+            return response
+        except Exception as e:
+            latency_ms = int((time.time() - start_time) * 1000)
+            log_usage(0, req.provider, req.model, latency_ms, "error",
+                     req.messages[-1]["content"] if req.messages else "", str(e))
+            raise HTTPException(500, f"Provider error: {str(e)}")
+
+# ─── RAG / KNOWLEDGE BASE ENDPOINTS ────────────────────────────────────────────
+@app.post("/kb/upload")
+async def kb_upload(file: UploadFile = File(...)):
+    """Upload a document to the knowledge base"""
+    try:
+        temp_path = f"/tmp/{file.filename}"
+        with open(temp_path, "wb") as f:
+            f.write(await file.read())
+
+        if file.filename.lower().endswith('.pdf'):
+            rag_manager.ingest_pdf(temp_path, file.filename)
+        else:
+            # Assume text
+            with open(temp_path, "r", encoding="utf-8") as f:
+                text = f.read()
+            rag_manager.ingest_text(text, file.filename, {"filename": file.filename})
+
+        os.remove(temp_path)
+        return {"status": "success", "message": "Document indexed successfully"}
+    except Exception as e:
+        raise HTTPException(500, f"Upload failed: {str(e)}")
+
+@app.get("/kb/docs")
+async def list_kb_docs():
+    """List documents in knowledge base"""
+    try:
+        docs = rag_manager.list_documents()
+        return {"documents": docs.get('ids', [])}
+    except Exception as e:
+        raise HTTPException(500, f"Failed to list documents: {str(e)}")
+
 # ─── BILLING ENDPOINTS ────────────────────────────────────────────────────────
 class TopupRequest(BaseModel):
     pack_id: str  # micro / builder / power / studio
@@ -417,7 +532,7 @@ async def stream_nexus_app_build(task: str, token: str):
             yield f"data: {json.dumps({'type':'log','agent':'devops','message':'Docker + CI/CD configs written.'})}\n\n"
 
             yield f"data: {json.dumps({'type':'agent_start','agent':'planner'})}\n\n"
-            task_tree = planner.decompose(f"Build {task}", "groq", "llama-3.3-70b-versatile")
+            task_tree = await planner.decompose(f"Build {task}", "groq", "llama-3.3-70b-versatile")
 
             for step in task_tree:
                 sub = step['task']
@@ -547,7 +662,12 @@ async def root(): return {"name": "Project Nexus API", "version": "8.0", "docs":
 
 @app.get("/pricing", response_class=HTMLResponse)
 async def pricing_page():
-    with open("../frontend/pricing.html","r") as f: return f.read()
+    pricing_path = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+        "frontend", "pricing.html"
+    )
+    with open(pricing_path, "r") as f:
+        return f.read()
 
 if __name__ == "__main__":
     import uvicorn

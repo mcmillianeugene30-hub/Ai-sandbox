@@ -45,7 +45,7 @@ Ensure you use 2026 standards: 'uv' for Python dependencies, 'pnpm' or 'bun' for
         from tools.fs_tool import fs_tool
         for path, content in config.get('dockerfiles', {}).items():
             fs_tool.write_file(f"{base_path}/{path}", content)
-        
+
         fs_tool.write_file(f"{base_path}/docker-compose.yml", config.get('compose', ''))
         fs_tool.mkdir(f"{base_path}/.github/workflows")
-        fs_tool.write_item(f"{base_path}/.github/workflows/deploy.yml", config.get('ci_cd', ''))
+        fs_tool.write_file(f"{base_path}/.github/workflows/deploy.yml", config.get('ci_cd', ''))
