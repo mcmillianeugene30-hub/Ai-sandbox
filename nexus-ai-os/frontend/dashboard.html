@@ -1,268 +1,424 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Nexus AI-OS Dashboard v6</title>
-    <style>
-        body { background: #0a0a0a; color: #00ff41; font-family: 'Courier New', Courier, monospace; margin: 0; }
-        .dashboard-container { display: flex; flex-direction: column; height: 100vh; padding: 20px; box-sizing: border-box; }
-        .header { display: flex; justify-content: space-between; border-bottom: 2px solid #00ff41; padding-bottom: 10px; margin-bottom: 20px; }
-        .main-view { display: flex; flex: 1; gap: 20px; overflow: hidden; }
-        
-        .sidebar { display: flex; flex-direction: column; gap: 20px; width: 220px; }
-        .agent-pills { display: flex; flex-direction: column; gap: 10px; }
-        .agent-pill { padding: 10px; border: 1px solid #333; border-radius: 5px; text-align: center; opacity: 0.5; font-size: 0.9rem; }
-        .agent-pill.active { border-color: #00ff41; opacity: 1; box-shadow: 0 0 10px #00ff41; }
-        
-        .terminal { flex: 1; background: #000; border: 1px solid #333; padding: 15px; overflow-y: auto; display: flex; flex-direction: column; }
-        .terminal-log { margin-bottom: 5px; line-height: 1.4; font-size: 0.9rem; }
-        .log-researcher { color: #00d2ff; }
-        .log-coder { color: #ffae00; }
-        .log-reviewer { color: #ff00ff; }
-        .log-system { color: #888; }
-        
-        .billing-view { flex: 1; background: #050505; border: 1px solid #00ff41; padding: 20px; display: none; overflow-y: auto; }
-        .metric-card { border: 1px solid #333; padding: 15px; margin-bottom: 20px; text-align: center; }
-        .metric-value { font-size: 2.5rem; font-weight: bold; color: #00ff41; }
-        .usage-table { width: 100%; border-collapse: collapse; margin-top: 10px; font-size: 0.8rem; }
-        .usage-table th, .usage-table td { border: 1px solid #333; padding: 8px; text-align: left; }
-        
-        .controls { margin-top: 20px; display: flex; gap: 10px; }
-        input { background: #111; border: 1px solid #00ff41; color: #00ff41; padding: 10px; flex: 1; outline: none; }
-        button { background: #00ff41; color: #000; border: none; padding: 10px 20px; font-weight: bold; cursor: pointer; }
-        button:disabled { background: #333; color: #666; cursor: not-allowed; }
-        
-        .modal { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.9); justify-content: center; align-items: center; z-index: 100; }
-        .modal-content { background: #111; border: 1px solid #00ff41; padding: 30px; width: 300px; }
-        .modal-content h3 { margin-top: 0; }
-        .modal-content input { width: 100%; margin-bottom: 15px; box-sizing: border-box; }
-        
-        .nav-btn { font-size: 0.8rem; border: 1px solid #555; padding: 5px 10px; cursor: pointer; color: #555; }
-        .nav-btn.active { color: #00ff41; border-color: #00ff41; }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Nexus Admin — v7.1</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Barlow+Condensed:wght@700;900&family=Barlow:wght@400;500&display=swap');
+  :root{--bg:#050a0e;--card:#0f1c24;--border:#1a2f3a;--neon:#00ff88;--cyan:#00d4ff;--amber:#ffaa00;--red:#ff4455;--purple:#9d4edd;--text:#c8dde8;--muted:#4a6478;--mono:'Share Tech Mono',monospace;--head:'Barlow Condensed',sans-serif;}
+  *{box-sizing:border-box;margin:0;padding:0;}
+  body{background:var(--bg);color:var(--text);font-family:'Barlow',sans-serif;min-height:100vh;}
+  body::before{content:'';position:fixed;inset:0;background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,255,136,0.01) 2px,rgba(0,255,136,0.01) 4px);pointer-events:none;z-index:9999;}
+
+  /* ── header ── */
+  .hdr{padding:16px 28px;border-bottom:1px solid var(--border);display:flex;justify-content:space-between;align-items:center;background:linear-gradient(90deg,rgba(0,255,136,0.04),transparent 60%);}
+  .hdr::after{content:'';position:absolute;bottom:0;left:0;width:160px;height:2px;background:var(--neon);box-shadow:0 0 12px var(--neon);}
+  .logo{font-family:var(--head);font-weight:900;font-size:20px;letter-spacing:4px;color:var(--neon);text-shadow:0 0 20px rgba(0,255,136,.4);}
+  .hdr-right{display:flex;gap:12px;align-items:center;}
+  .pill{font-family:var(--mono);font-size:10px;padding:4px 10px;border:1px solid var(--border);}
+  .pulse-dot{width:6px;height:6px;background:var(--neon);border-radius:50%;animation:pulse 2s infinite;box-shadow:0 0 6px var(--neon);}
+  @keyframes pulse{0%,100%{opacity:1;transform:scale(1);}50%{opacity:.4;transform:scale(.8);}}
+
+  /* ── layout ── */
+  .shell{display:flex;height:calc(100vh - 56px);}
+  .sidebar{width:200px;border-right:1px solid var(--border);padding:20px 0;display:flex;flex-direction:column;gap:4px;background:#070d11;}
+  .nav-item{padding:10px 20px;font-family:var(--mono);font-size:11px;letter-spacing:1px;cursor:pointer;color:var(--muted);transition:all .15s;}
+  .nav-item:hover,.nav-item.active{color:var(--neon);background:rgba(0,255,136,.05);border-left:2px solid var(--neon);}
+  .main{flex:1;overflow-y:auto;padding:28px;}
+
+  /* ── login ── */
+  #login-screen{display:flex;align-items:center;justify-content:center;height:100vh;background:var(--bg);}
+  .login-box{background:var(--card);border:1px solid var(--border);padding:40px;width:320px;}
+  .login-box h2{font-family:var(--head);font-size:24px;letter-spacing:4px;color:var(--neon);margin-bottom:24px;}
+  .field{margin-bottom:16px;}
+  .field label{font-family:var(--mono);font-size:10px;color:var(--muted);display:block;margin-bottom:6px;}
+  .field input{width:100%;background:#0b1318;border:1px solid var(--border);color:var(--text);padding:10px;font-family:var(--mono);font-size:12px;outline:none;}
+  .field input:focus{border-color:var(--neon);}
+  .btn{background:var(--neon);color:var(--bg);border:none;padding:12px 24px;font-family:var(--head);font-weight:700;font-size:14px;letter-spacing:2px;cursor:pointer;width:100%;}
+  .btn:hover{box-shadow:0 0 16px rgba(0,255,136,.4);}
+  .btn.cyan{background:var(--cyan);}
+  .btn.amber{background:var(--amber);}
+  .btn.red{background:var(--red);color:#fff;}
+  .btn.sm{padding:6px 14px;font-size:11px;width:auto;}
+
+  /* ── section title ── */
+  .sec-title{font-family:var(--head);font-weight:700;font-size:12px;letter-spacing:4px;text-transform:uppercase;color:var(--muted);margin-bottom:16px;display:flex;align-items:center;gap:12px;}
+  .sec-title::after{content:'';flex:1;height:1px;background:var(--border);}
+
+  /* ── KPI cards ── */
+  .kpi-grid{display:grid;grid-template-columns:repeat(4,1fr);gap:16px;margin-bottom:32px;}
+  .kpi{background:var(--card);border:1px solid var(--border);padding:18px;position:relative;overflow:hidden;}
+  .kpi::before{content:'';position:absolute;top:0;left:0;width:3px;height:100%;}
+  .kpi.g::before{background:var(--neon);box-shadow:0 0 8px var(--neon);}
+  .kpi.b::before{background:var(--cyan);}
+  .kpi.a::before{background:var(--amber);}
+  .kpi.p::before{background:var(--purple);}
+  .kpi-label{font-family:var(--mono);font-size:10px;color:var(--muted);letter-spacing:2px;margin-bottom:6px;}
+  .kpi-val{font-family:var(--head);font-weight:900;font-size:28px;}
+  .kpi.g .kpi-val{color:var(--neon);}
+  .kpi.b .kpi-val{color:var(--cyan);}
+  .kpi.a .kpi-val{color:var(--amber);}
+  .kpi.p .kpi-val{color:var(--purple);}
+  .kpi-sub{font-size:11px;color:var(--muted);margin-top:4px;}
+
+  /* ── tables ── */
+  .tbl-wrap{background:var(--card);border:1px solid var(--border);overflow:hidden;margin-bottom:28px;}
+  table{width:100%;border-collapse:collapse;font-size:12px;}
+  thead tr{background:rgba(0,255,136,.04);border-bottom:1px solid var(--border);}
+  th{font-family:var(--mono);font-size:10px;letter-spacing:2px;color:var(--muted);padding:12px 14px;text-align:left;white-space:nowrap;}
+  td{padding:10px 14px;border-bottom:1px solid rgba(26,47,58,.4);vertical-align:middle;}
+  tbody tr:hover{background:rgba(0,255,136,.025);}
+  tbody tr:last-child td{border-bottom:none;}
+
+  /* ── plan badge ── */
+  .plan-tag{font-family:var(--mono);font-size:9px;padding:2px 8px;font-weight:700;letter-spacing:1px;}
+  .plan-STARTER{background:rgba(0,255,136,.1);color:var(--neon);border:1px solid rgba(0,255,136,.25);}
+  .plan-PRO{background:rgba(0,212,255,.1);color:var(--cyan);border:1px solid rgba(0,212,255,.25);}
+  .plan-ENTERPRISE{background:rgba(157,78,221,.1);color:var(--purple);border:1px solid rgba(157,78,221,.25);}
+  .plan-NONE{background:rgba(255,68,85,.1);color:var(--red);border:1px solid rgba(255,68,85,.25);}
+
+  /* ── action panel ── */
+  .action-row{display:flex;gap:10px;align-items:center;flex-wrap:wrap;margin-bottom:20px;}
+  .action-row input,.action-row select{background:#0b1318;border:1px solid var(--border);color:var(--text);padding:8px 12px;font-family:var(--mono);font-size:11px;outline:none;}
+  .action-row input:focus,.action-row select:focus{border-color:var(--neon);}
+
+  /* ── ledger ── */
+  .ledger-pos{color:var(--neon);}
+  .ledger-neg{color:var(--red);}
+
+  /* ── tabs ── */
+  .view{display:none;}
+  .view.active{display:block;}
+
+  .toast{position:fixed;bottom:24px;right:24px;background:var(--neon);color:var(--bg);font-family:var(--mono);font-size:12px;padding:10px 20px;display:none;z-index:10000;}
+</style>
 </head>
 <body>
-    <div class="dashboard-container">
-        <div class="header">
-            <div class="title">NEXUS AI-OS KERNEL v6.0 <span id="admin-status" style="font-size: 0.7rem; margin-left: 10px; color: #555;">[GUEST]</span></div>
-            <div style="display: flex; gap: 10px;">
-                <div id="btn-terminal" class="nav-btn active">TERMINAL</div>
-                <div id="btn-billing" class="nav-btn">BILLING/ADMIN</div>
-                <div id="btn-login" class="nav-btn">LOGIN</div>
-            </div>
-        </div>
 
-        <div class="main-view">
-            <div class="sidebar">
-                <div class="agent-pills">
-                    <div id="pill-architect" class="agent-pill">ARCHITECT</div>
-                    <div id="pill-devops" class="agent-pill">DEVOPS</div>
-                    <div id="pill-planner" class="agent-pill">PLANNER</div>
-                    <div id="pill-researcher" class="agent-pill">HIVE RESEARCH</div>
-                    <div id="pill-coder" class="agent-pill">CODER</div>
-                    <div id="pill-reviewer" class="agent-pill">REVIEWER</div>
-                </div>
-                <div id="quick-stats" style="font-size: 0.7rem; color: #444; border-top: 1px solid #222; padding-top: 10px;">
-                    SESSION SPEND: $0.0000
-                </div>
-            </div>
+<!-- LOGIN -->
+<div id="login-screen">
+  <div class="login-box">
+    <h2>NEXUS ADMIN</h2>
+    <div class="field"><label>USERNAME</label><input id="l-user" type="text" value="nexus" placeholder="nexus"></div>
+    <div class="field"><label>PASSWORD</label><input id="l-pass" type="password" placeholder="••••••••"></div>
+    <button class="btn" id="do-login">AUTHENTICATE →</button>
+    <div id="login-err" style="color:var(--red);font-family:var(--mono);font-size:11px;margin-top:10px;display:none;">Invalid credentials</div>
+  </div>
+</div>
 
-            <!-- Terminal View -->
-            <div class="terminal" id="terminal-view">
-                <div id="project-view" style="display: none; border-bottom: 1px solid #333; margin-bottom: 10px; padding-bottom: 10px;">
-                    <div style="font-weight: bold; margin-bottom: 5px; color: #00ff41;">🏗️ PROJECT ARCHITECTURE:</div>
-                    <div id="stack-info" style="color: #00d2ff; margin-bottom: 5px; font-size: 0.8rem;">STACK: ...</div>
-                    <div id="project-tree" style="color: #ffae00; white-space: pre-wrap; font-size: 0.8rem; background: #111; padding: 10px;">STRUCTURE: ...</div>
-                </div>
-                <div id="logs-container">
-                    <div class="terminal-log log-system">>> Kernel v6.0 Online. Authentication required for high-cost operations.</div>
-                </div>
-            </div>
+<!-- DASHBOARD (hidden until login) -->
+<div id="dashboard" style="display:none;">
+  <div class="hdr" style="position:relative;">
+    <div class="logo">⬡ NEXUS ADMIN</div>
+    <div class="hdr-right">
+      <div class="pulse-dot"></div>
+      <div class="pill" id="hdr-user">ADMIN</div>
+      <div class="pill" id="hdr-credits" style="color:var(--neon);">— CR</div>
+      <a href="/pricing" target="_blank" class="pill" style="color:var(--amber);cursor:pointer;text-decoration:none;">PRICING PAGE ↗</a>
+      <div class="pill" style="cursor:pointer;color:var(--red);" onclick="logout()">LOGOUT</div>
+    </div>
+  </div>
 
-            <!-- Billing View -->
-            <div class="billing-view" id="billing-view">
-                <div style="display: flex; gap: 20px;">
-                    <div class="metric-card" style="flex: 1;">
-                        <div style="font-size: 0.8rem; color: #888;">TOTAL PLATFORM SPEND</div>
-                        <div class="metric-value" id="total-spend">$0.00</div>
-                    </div>
-                    <div class="metric-card" style="flex: 1;">
-                        <div style="font-size: 0.8rem; color: #888;">FINE-TUNING EXPORT (STARRED)</div>
-                        <div class="metric-value" id="starred-count">0</div>
-                        <button id="export-jsonl" style="margin-top: 10px; font-size: 0.7rem; padding: 5px;">EXPORT JSONL</button>
-                    </div>
-                </div>
-                <h3>Model Usage Breakdown</h3>
-                <table class="usage-table" id="usage-table">
-                    <thead><tr><th>Model</th><th>Requests</th><th>Total Cost (USD)</th></tr></thead>
-                    <tbody></tbody>
-                </table>
-                <h3 style="margin-top: 30px;">Recent Audit & Training Logs</h3>
-                <table class="usage-table" id="recent-logs-table">
-                    <thead><tr><th>ID</th><th>Provider</th><th>Model</th><th>Cost</th><th>Status</th><th>Action</th></tr></thead>
-                    <tbody></tbody>
-                </table>
-            </div>
-        </div>
-
-        <div class="controls">
-            <input type="text" id="task-input" placeholder="Enter full-stack goal (Admin Only)...">
-            <button id="execute-btn">EXECUTE</button>
-        </div>
+  <div class="shell">
+    <div class="sidebar">
+      <div class="nav-item active" onclick="showView('overview')">📊 OVERVIEW</div>
+      <div class="nav-item" onclick="showView('users')">👤 USERS</div>
+      <div class="nav-item" onclick="showView('logs')">📋 LOGS</div>
+      <div class="nav-item" onclick="showView('billing')">💳 BILLING</div>
+      <div class="nav-item" onclick="showView('terminal')">⚡ TERMINAL</div>
     </div>
 
-    <!-- Login Modal -->
-    <div id="login-modal" class="modal">
-        <div class="modal-content">
-            <h3>Admin Login</h3>
-            <input type="text" id="login-user" placeholder="Username" value="nexus">
-            <input type="password" id="login-pass" placeholder="Password">
-            <button id="do-login" style="width: 100%;">AUTHENTICATE</button>
-            <button id="close-login" style="width: 100%; background: #333; color: #fff; margin-top: 10px;">CANCEL</button>
+    <div class="main">
+
+      <!-- OVERVIEW -->
+      <div id="view-overview" class="view active">
+        <div class="sec-title">PLATFORM OVERVIEW</div>
+        <div class="kpi-grid" id="kpi-grid">
+          <div class="kpi g"><div class="kpi-label">TOTAL USERS</div><div class="kpi-val" id="kpi-users">—</div><div class="kpi-sub">Paying subscribers</div></div>
+          <div class="kpi b"><div class="kpi-label">EST. MRR</div><div class="kpi-val" id="kpi-mrr">—</div><div class="kpi-sub">Monthly recurring</div></div>
+          <div class="kpi a"><div class="kpi-label">EST. ARR</div><div class="kpi-val" id="kpi-arr">—</div><div class="kpi-sub">Annual run rate</div></div>
+          <div class="kpi p"><div class="kpi-label">API COST</div><div class="kpi-val" id="kpi-cost">—</div><div class="kpi-sub">Total USD spent</div></div>
         </div>
-    </div>
+        <div class="sec-title">PLAN BREAKDOWN</div>
+        <div class="tbl-wrap">
+          <table><thead><tr><th>Plan</th><th>Users</th><th>MRR</th><th>Margin (Free API)</th></tr></thead>
+          <tbody id="plan-table"></tbody></table>
+        </div>
+        <div class="sec-title">MODEL USAGE</div>
+        <div class="tbl-wrap">
+          <table><thead><tr><th>Model</th><th>Requests</th><th>Total Cost</th></tr></thead>
+          <tbody id="model-table"></tbody></table>
+        </div>
+      </div>
 
-    <script>
-        let authToken = localStorage.getItem('nexus_token') || null;
-        const apiBase = "http://localhost:8000/api/v1";
+      <!-- USERS -->
+      <div id="view-users" class="view">
+        <div class="sec-title">USER MANAGEMENT</div>
+        <div class="action-row">
+          <input id="grant-uid" type="number" placeholder="User ID">
+          <input id="grant-amt" type="number" placeholder="Credits to grant">
+          <button class="btn sm" onclick="grantCredits()">GRANT CREDITS</button>
+          <select id="plan-uid-sel" style="margin-left:16px;"><option>— User ID —</option></select>
+          <select id="plan-sel">
+            <option value="STARTER">STARTER</option>
+            <option value="PRO">PRO</option>
+            <option value="ENTERPRISE">ENTERPRISE</option>
+          </select>
+          <button class="btn sm amber" onclick="setPlan()">SET PLAN</button>
+        </div>
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr><th>ID</th><th>Username</th><th>Plan</th><th>Credits</th><th>Expires</th><th>Admin</th></tr></thead>
+            <tbody id="users-table"></tbody>
+          </table>
+        </div>
+      </div>
 
-        const elements = {
-            terminalView: document.getElementById('terminal-view'),
-            billingView: document.getElementById('billing-view'),
-            logsContainer: document.getElementById('logs-container'),
-            taskInput: document.getElementById('task-input'),
-            executeBtn: document.getElementById('execute-btn'),
-            adminStatus: document.getElementById('admin-status'),
-            totalSpend: document.getElementById('total-spend'),
-            usageTable: document.getElementById('usage-table').querySelector('tbody'),
-            recentLogsTable: document.getElementById('recent-logs-table').querySelector('tbody')
-        };
+      <!-- LOGS -->
+      <div id="view-logs" class="view">
+        <div class="sec-title">USAGE & AUDIT LOGS</div>
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr><th>ID</th><th>Time</th><th>Provider</th><th>Model</th><th>Cost</th><th>Status</th><th>★</th></tr></thead>
+            <tbody id="logs-table"></tbody>
+          </table>
+        </div>
+        <button class="btn sm" onclick="exportJSONL()">EXPORT STARRED AS JSONL ↓</button>
+      </div>
 
-        // Navigation
-        document.getElementById('btn-terminal').onclick = () => {
-            elements.terminalView.style.display = 'flex';
-            elements.billingView.style.display = 'none';
-            document.getElementById('btn-terminal').classList.add('active');
-            document.getElementById('btn-billing').classList.remove('active');
-        };
-        document.getElementById('btn-billing').onclick = () => {
-            if (!authToken) return alert("Login required for billing data.");
-            elements.terminalView.style.display = 'none';
-            elements.billingView.style.display = 'block';
-            document.getElementById('btn-terminal').classList.remove('active');
-            document.getElementById('btn-billing').classList.add('active');
-            loadBillingData();
-        };
+      <!-- BILLING -->
+      <div id="view-billing" class="view">
+        <div class="sec-title">PLAN & PRICING CONFIG</div>
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr><th>Plan</th><th>Price/mo</th><th>Credits</th><th>Models</th></tr></thead>
+            <tbody>
+              <tr><td><span class="plan-tag plan-STARTER">STARTER</span></td><td style="color:var(--neon);font-family:var(--mono);">$9.00</td><td style="font-family:var(--mono);">90 cr</td><td style="color:var(--muted);font-size:11px;">Llama 8B, Gemini Flash</td></tr>
+              <tr><td><span class="plan-tag plan-PRO">PRO</span></td><td style="color:var(--cyan);font-family:var(--mono);">$29.00</td><td style="font-family:var(--mono);">150 cr</td><td style="color:var(--muted);font-size:11px;">Llama 70B, Gemini Pro, Mistral</td></tr>
+              <tr><td><span class="plan-tag plan-ENTERPRISE">ENTERPRISE</span></td><td style="color:var(--purple);font-family:var(--mono);">$99.00</td><td style="font-family:var(--mono);">600 cr</td><td style="color:var(--muted);font-size:11px;">ALL models including GPT-4o, Claude</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="sec-title">TOP-UP PACKS</div>
+        <div class="tbl-wrap">
+          <table>
+            <thead><tr><th>Pack</th><th>Price</th><th>Credits</th><th>Effective Rate</th></tr></thead>
+            <tbody>
+              <tr><td>Micro</td><td style="font-family:var(--mono);color:var(--neon);">$5</td><td style="font-family:var(--mono);">55 cr (+10%)</td><td style="font-family:var(--mono);color:var(--muted);">$0.091/cr</td></tr>
+              <tr><td>Builder</td><td style="font-family:var(--mono);color:var(--cyan);">$10</td><td style="font-family:var(--mono);">115 cr (+15%)</td><td style="font-family:var(--mono);color:var(--muted);">$0.087/cr</td></tr>
+              <tr><td>Power</td><td style="font-family:var(--mono);color:var(--purple);">$25</td><td style="font-family:var(--mono);">300 cr (+20%)</td><td style="font-family:var(--mono);color:var(--muted);">$0.083/cr</td></tr>
+              <tr><td>Studio</td><td style="font-family:var(--mono);color:var(--amber);">$50</td><td style="font-family:var(--mono);">650 cr (+30%)</td><td style="font-family:var(--mono);color:var(--muted);">$0.077/cr</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <div class="sec-title">CREDIT ECONOMY</div>
+        <p style="font-family:var(--mono);font-size:12px;color:var(--muted);line-height:1.8;">
+          $0.10 per credit · $1 = 10 credits<br>
+          Agent step: 1 cr · Deploy: 5 cr · RAG query: 0.5 cr<br>
+          Token cost auto-deducted on each request<br>
+          Credits expire 30 days after plan activation
+        </p>
+      </div>
 
-        // Auth
-        document.getElementById('btn-login').onclick = () => document.getElementById('login-modal').style.display = 'flex';
-        document.getElementById('close-login').onclick = () => document.getElementById('login-modal').style.display = 'none';
-        document.getElementById('do-login').onclick = async () => {
-            const user = document.getElementById('login-user').value;
-            const pass = document.getElementById('login-pass').value;
-            const formData = new FormData();
-            formData.append('username', user);
-            formData.append('password', pass);
+      <!-- TERMINAL -->
+      <div id="view-terminal" class="view">
+        <div class="sec-title">NEXUS TERMINAL</div>
+        <div style="background:#000;border:1px solid var(--border);padding:16px;height:400px;overflow-y:auto;font-family:var(--mono);font-size:12px;" id="terminal-out">
+          <div style="color:var(--muted);">>> Nexus Admin Terminal v7.1 ready.</div>
+        </div>
+        <div style="display:flex;gap:10px;margin-top:10px;">
+          <input id="term-input" style="flex:1;background:#0b1318;border:1px solid var(--border);color:var(--neon);padding:10px;font-family:var(--mono);font-size:12px;outline:none;" placeholder="Enter task goal for Nexus app builder...">
+          <button class="btn" onclick="runTerminal()">EXECUTE</button>
+        </div>
+      </div>
 
-            try {
-                const res = await fetch(`${apiBase}/admin/login`, { method: 'POST', body: formData });
-                if (res.ok) {
-                    const data = await res.json();
-                    authToken = data.access_token;
-                    localStorage.setItem('nexus_token', authToken);
-                    elements.adminStatus.textContent = `[ADMIN: ${user.toUpperCase()}]`;
-                    elements.adminStatus.style.color = "#00ff41";
-                    document.getElementById('login-modal').style.display = 'none';
-                    addLog("Admin authenticated successfully.", "system");
-                } else {
-                    alert("Authentication failed.");
-                }
-            } catch (e) { alert("Server connection failed."); }
-        };
+    </div><!-- /main -->
+  </div><!-- /shell -->
+</div><!-- /dashboard -->
 
-        async function loadBillingData() {
-            const res = await fetch(`${apiBase}/admin/stats`, {
-                headers: { 'Authorization': `Bearer ${authToken}` }
-            });
-            if (!res.ok) return;
-            const data = await res.json();
-            elements.totalSpend.textContent = `$${data.total_spend.toFixed(4)}`;
-            
-            // Get starred count separately
-            const starredRes = await fetch(`${apiBase}/admin/starred`, {
-                headers: { 'Authorization': `Bearer ${authToken}` }
-            });
-            const starredData = await starredRes.json();
-            document.getElementById('starred-count').textContent = starredData.length;
+<div id="toast" class="toast"></div>
 
-            elements.usageTable.innerHTML = data.models.map(m => `
-                <tr><td>${m.model}</td><td>${m.count}</td><td>$${m.cost.toFixed(4)}</td></tr>
-            `).join('');
-            
-            elements.recentLogsTable.innerHTML = data.recent_logs.map(l => `
-                <tr>
-                    <td>${l.id}</td>
-                    <td>${l.provider}</td>
-                    <td>${l.model}</td>
-                    <td>$${l.cost.toFixed(6)}</td>
-                    <td>${l.status}</td>
-                    <td><button onclick="toggleStar(${l.id})" style="font-size: 0.6rem; padding: 2px 5px; background: #333; color: #fff;">STAR</button></td>
-                </tr>
-            `).join('');
-        }
+<script>
+  const API = 'http://localhost:8000/api/v1';
+  let token = localStorage.getItem('nexus_token');
+  let me = null;
 
-        async function toggleStar(id) {
-            await fetch(`${apiBase}/admin/star/${id}`, {
-                method: 'POST',
-                headers: { 'Authorization': `Bearer ${authToken}` }
-            });
-            loadBillingData();
-        }
+  // ── auth ──────────────────────────────────────────────────────────────────
+  document.getElementById('do-login').onclick = async () => {
+    const u = document.getElementById('l-user').value;
+    const p = document.getElementById('l-pass').value;
+    const fd = new FormData(); fd.append('username', u); fd.append('password', p);
+    const res = await fetch(`${API}/auth/login`, { method:'POST', body:fd });
+    if (res.ok) {
+      const data = await res.json();
+      token = data.access_token;
+      localStorage.setItem('nexus_token', token);
+      document.getElementById('login-screen').style.display = 'none';
+      document.getElementById('dashboard').style.display = 'block';
+      await loadMe(); loadOverview(); loadUsers(); loadLogs();
+    } else {
+      document.getElementById('login-err').style.display = 'block';
+    }
+  };
 
-        document.getElementById('export-jsonl').onclick = () => {
-            window.open(`${apiBase}/admin/export?token=${authToken}`);
-        };
+  function logout() { localStorage.removeItem('nexus_token'); location.reload(); }
 
-        function addLog(msg, agent) {
-            const div = document.createElement('div');
-            div.className = `terminal-log log-${agent}`;
-            div.textContent = `>> [${new Date().toLocaleTimeString()}] ${msg}`;
-            elements.logsContainer.appendChild(div);
-            elements.terminalView.scrollTop = elements.terminalView.scrollHeight;
-        }
+  async function loadMe() {
+    const res = await auth_get('/user/me');
+    me = await res.json();
+    document.getElementById('hdr-user').textContent = me.username.toUpperCase();
+    document.getElementById('hdr-credits').textContent = `${me.credits.toFixed(1)} CR`;
+  }
 
-        elements.executeBtn.onclick = () => {
-            const task = elements.taskInput.value;
-            if (!task) return;
-            if (!authToken) return alert("Login required to execute full-stack workflows.");
+  function auth_get(path) {
+    return fetch(`${API}${path}`, { headers:{ Authorization:`Bearer ${token}` } });
+  }
+  function auth_post(path, body={}) {
+    return fetch(`${API}${path}`, { method:'POST', headers:{ Authorization:`Bearer ${token}`, 'Content-Type':'application/json' }, body:JSON.stringify(body) });
+  }
 
-            addLog(`Initializing Build: ${task}`, 'system');
-            elements.executeBtn.disabled = true;
+  // ── navigation ────────────────────────────────────────────────────────────
+  function showView(v) {
+    document.querySelectorAll('.view').forEach(el => el.classList.remove('active'));
+    document.querySelectorAll('.nav-item').forEach(el => el.classList.remove('active'));
+    document.getElementById(`view-${v}`).classList.add('active');
+    event.target.classList.add('active');
+    if (v === 'users') loadUsers();
+    if (v === 'logs')  loadLogs();
+  }
 
-            const url = `${apiBase}/nexus/app-build?task=${encodeURIComponent(task)}&token=${authToken}`;
-            const eventSource = new EventSource(url);
+  // ── overview ──────────────────────────────────────────────────────────────
+  async function loadOverview() {
+    const res = await auth_get('/admin/stats');
+    if (!res.ok) return;
+    const d = await res.json();
+    document.getElementById('kpi-users').textContent = d.total_users;
+    const mrr = d.plan_breakdown.reduce((s, p) => s + p.mrr, 0);
+    document.getElementById('kpi-mrr').textContent = `$${mrr.toFixed(0)}`;
+    document.getElementById('kpi-arr').textContent = `$${d.arr_estimate.toFixed(0)}`;
+    document.getElementById('kpi-cost').textContent = `$${d.total_spend.toFixed(4)}`;
 
-            eventSource.onmessage = (event) => {
-                const data = JSON.parse(event.data);
-                if (data.type === 'log') addLog(data.message, data.agent);
-                if (data.type === 'complete') {
-                    addLog(`Success! Project saved to ${data.project_path}`, 'system');
-                    eventSource.close();
-                    elements.executeBtn.disabled = false;
-                }
-            };
-            eventSource.onerror = () => {
-                addLog("Stream interrupted. Ensure server is running.", "system");
-                eventSource.close();
-                elements.executeBtn.disabled = false;
-            };
-        };
+    const pb = document.getElementById('plan-table');
+    const margins = { STARTER:'~94%', PRO:'~97%', ENTERPRISE:'~87%', NONE:'N/A' };
+    pb.innerHTML = d.plan_breakdown.map(p => `
+      <tr>
+        <td><span class="plan-tag plan-${p.plan}">${p.plan}</span></td>
+        <td style="font-family:var(--mono);">${p.users}</td>
+        <td style="font-family:var(--mono);color:var(--neon);">$${p.mrr.toFixed(2)}/mo</td>
+        <td style="font-family:var(--mono);color:var(--cyan);">${margins[p.plan]||'—'}</td>
+      </tr>`).join('');
 
-        if (authToken) {
-            elements.adminStatus.textContent = `[ADMIN]`;
-            elements.adminStatus.style.color = "#00ff41";
-        }
-    </script>
+    const mt = document.getElementById('model-table');
+    mt.innerHTML = (d.models||[]).map(m => `
+      <tr>
+        <td>${m.model}</td>
+        <td style="font-family:var(--mono);">${m.count}</td>
+        <td style="font-family:var(--mono);color:var(--amber);">$${(m.cost||0).toFixed(6)}</td>
+      </tr>`).join('');
+  }
+
+  // ── users ─────────────────────────────────────────────────────────────────
+  async function loadUsers() {
+    const res = await auth_get('/admin/users');
+    if (!res.ok) return;
+    const users = await res.json();
+    const tb = document.getElementById('users-table');
+    tb.innerHTML = users.map(u => `
+      <tr>
+        <td style="font-family:var(--mono);color:var(--muted);">${u.id}</td>
+        <td><strong>${u.username}</strong></td>
+        <td><span class="plan-tag plan-${u.plan}">${u.plan}</span></td>
+        <td style="font-family:var(--mono);color:var(--neon);">${(u.credits||0).toFixed(1)} cr</td>
+        <td style="font-family:var(--mono);color:var(--muted);font-size:11px;">${(u.expires||'—').slice(0,10)}</td>
+        <td style="font-family:var(--mono);color:${u.admin?'var(--amber)':'var(--muted)'};">${u.admin?'YES':'NO'}</td>
+      </tr>`).join('');
+    // Populate user ID dropdown
+    const sel = document.getElementById('plan-uid-sel');
+    sel.innerHTML = '<option>— User ID —</option>' + users.filter(u=>!u.admin).map(u=>`<option value="${u.id}">${u.id} — ${u.username}</option>`).join('');
+  }
+
+  async function grantCredits() {
+    const uid = document.getElementById('grant-uid').value;
+    const amt = parseFloat(document.getElementById('grant-amt').value);
+    if (!uid || !amt) return toast('Enter user ID and amount');
+    const res = await auth_post(`/admin/users/${uid}/grant?amount=${amt}`);
+    if (res.ok) { toast(`✓ Granted ${amt} credits to user ${uid}`); loadUsers(); loadOverview(); }
+  }
+
+  async function setPlan() {
+    const uid = document.getElementById('plan-uid-sel').value;
+    const plan = document.getElementById('plan-sel').value;
+    if (!uid || uid.includes('—')) return toast('Select a user');
+    const realUid = uid.split(' ')[0];
+    const res = await auth_post(`/admin/users/${realUid}/set-plan?plan=${plan}`);
+    if (res.ok) { toast(`✓ Set ${plan} for user ${realUid}`); loadUsers(); loadOverview(); }
+  }
+
+  // ── logs ──────────────────────────────────────────────────────────────────
+  async function loadLogs() {
+    const res = await auth_get('/admin/stats');
+    if (!res.ok) return;
+    const d = await res.json();
+    const tb = document.getElementById('logs-table');
+    tb.innerHTML = d.recent_logs.map(l => `
+      <tr>
+        <td style="font-family:var(--mono);color:var(--muted);">${l.id}</td>
+        <td style="font-family:var(--mono);font-size:11px;color:var(--muted);">${l.time}</td>
+        <td>${l.provider}</td>
+        <td>${l.model}</td>
+        <td style="font-family:var(--mono);color:var(--amber);">$${(l.cost||0).toFixed(6)}</td>
+        <td style="font-family:var(--mono);font-size:11px;color:${l.status==='ok'?'var(--neon)':'var(--red)'};">${l.status}</td>
+        <td><button class="btn sm" style="background:var(--amber);color:var(--bg);padding:3px 8px;font-size:10px;" onclick="starLog(${l.id})">★</button></td>
+      </tr>`).join('');
+  }
+
+  async function starLog(id) {
+    await auth_post(`/admin/star/${id}`);
+    toast('★ Log starred for fine-tuning');
+    loadLogs();
+  }
+
+  function exportJSONL() {
+    window.open(`${API}/admin/export?token=${token}`);
+  }
+
+  // ── terminal ──────────────────────────────────────────────────────────────
+  function termLog(msg, cls='') {
+    const d = document.createElement('div');
+    d.textContent = `>> ${msg}`;
+    d.style.color = cls === 'ok' ? 'var(--neon)' : cls === 'err' ? 'var(--red)' : 'var(--muted)';
+    document.getElementById('terminal-out').appendChild(d);
+    document.getElementById('terminal-out').scrollTop = 9999;
+  }
+
+  function runTerminal() {
+    const task = document.getElementById('term-input').value;
+    if (!task) return;
+    termLog(`Initiating build: "${task}"`);
+    const es = new EventSource(`${API}/nexus/app-build?task=${encodeURIComponent(task)}&token=${token}`);
+    es.onmessage = e => {
+      const d = JSON.parse(e.data);
+      if (d.type === 'log') termLog(d.message);
+      if (d.type === 'complete') { termLog(`Build complete → ${d.project_path}`, 'ok'); es.close(); }
+      if (d.type === 'error') { termLog(`ERROR: ${d.message}`, 'err'); es.close(); }
+    };
+    es.onerror = () => { termLog('Stream error.', 'err'); es.close(); };
+  }
+
+  // ── toast ─────────────────────────────────────────────────────────────────
+  function toast(msg) {
+    const t = document.getElementById('toast');
+    t.textContent = msg; t.style.display = 'block';
+    setTimeout(() => t.style.display = 'none', 2800);
+  }
+
+  // ── auto-init if already logged in ────────────────────────────────────────
+  if (token) {
+    document.getElementById('login-screen').style.display = 'none';
+    document.getElementById('dashboard').style.display = 'block';
+    loadMe(); loadOverview(); loadUsers(); loadLogs();
+  }
+</script>
 </body>
 </html>
