@@ -35,7 +35,13 @@ from agents.researcher import ResearcherAgent
 from agents.coder import CoderAgent
 from agents.reviewer import ReviewerAgent
 from agents.hive_aggregator import HiveAggregator
+from agents.auto_deploy import AutoDeployAgent
+from agents.model_researcher import AutonomousModelResearcher
+from core.swarm import SwarmBus, SwarmNode, SwarmOrchestrator
 from tools.fs_tool import fs_tool
+
+# Shared swarm bus (singleton per process)
+_swarm_bus = SwarmBus()
 
 # ─── CONFIG ───────────────────────────────────────────────────────────────────
 SECRET_KEY = "nexus_super_secret_key_2026"
@@ -430,12 +436,114 @@ async def stream_nexus_app_build(task: str, token: str):
 
     return StreamingResponse(gen(), media_type="text/event-stream")
 
-# ─── STATIC PRICING PAGE ──────────────────────────────────────────────────────
+# ─── FRONTIER 1: AUTO-DEPLOY ──────────────────────────────────────────────────
+@app.post("/api/v1/autodeploy/trigger")
+async def trigger_deploy(admin=Depends(get_admin)):
+    kernel = NexusKernel()
+    agent  = AutoDeployAgent(kernel)
+    service_url = os.environ.get("RENDER_SERVICE_URL",
+                                  "https://nexus-backend.onrender.com")
+    logs = []
+    result = await agent.full_deploy_pipeline(service_url, log_fn=logs.append)
+    return {"result": result, "logs": logs}
+
+@app.get("/api/v1/autodeploy/status")
+async def deploy_status(admin=Depends(get_admin)):
+    render_key = os.environ.get("RENDER_API_KEY","")
+    svc_id     = os.environ.get("RENDER_SERVICE_ID","")
+    if not render_key or not svc_id:
+        return {"status": "unconfigured",
+                "message": "Set RENDER_API_KEY and RENDER_SERVICE_ID env vars"}
+    import httpx
+    async with httpx.AsyncClient() as c:
+        r = await c.get(f"https://api.render.com/v1/services/{svc_id}/deploys?limit=3",
+                        headers={"Authorization": f"Bearer {render_key}"})
+    return {"deploys": r.json() if r.status_code == 200 else [], "http": r.status_code}
+
+# ─── FRONTIER 2: AUTONOMOUS MODEL DISCOVERY ───────────────────────────────────
+@app.post("/api/v1/models/discover")
+async def discover_models(admin=Depends(get_admin)):
+    kernel   = NexusKernel()
+    explorer = AutonomousModelResearcher(kernel)
+    logs = []
+    result = await explorer.discover_and_register(DB_PATH, log_fn=logs.append)
+    return {"result": result, "logs": logs}
+
+@app.get("/api/v1/models/registry")
+async def get_model_registry(user=Depends(get_user)):
+    import json as _json
+    from agents.model_researcher import MODEL_REGISTRY_PATH
+    if not os.path.exists(MODEL_REGISTRY_PATH):
+        return {"models": {}, "last_updated": None}
+    with open(MODEL_REGISTRY_PATH) as f:
+        return _json.load(f)
+
+# ─── FRONTIER 3: SWARM INTELLIGENCE ──────────────────────────────────────────
+class SwarmRequest(BaseModel):
+    goal: str
+    num_nodes: int = 3
+
+@app.post("/api/v1/swarm/run")
+async def run_swarm(req: SwarmRequest, admin=Depends(get_admin)):
+    if req.num_nodes < 1 or req.num_nodes > 8:
+        raise HTTPException(400, "num_nodes must be 1–8")
+    kernel = NexusKernel()
+    orch   = SwarmOrchestrator(kernel, _swarm_bus)
+    specs  = ["research", "coding", "analysis", "review",
+              "documentation", "testing", "optimization", "security"]
+    nodes  = [SwarmNode(kernel, _swarm_bus,
+                        name=f"Node-{i+1}",
+                        specialization=specs[i % len(specs)])
+              for i in range(req.num_nodes)]
+    logs = []
+    result = await orch.run_swarm(req.goal, nodes, log_fn=logs.append)
+    return {"result": result, "logs": logs}
+
+@app.get("/api/v1/swarm/nodes")
+async def swarm_nodes(user=Depends(get_user)):
+    return {"nodes": _swarm_bus.get_live_nodes()}
+
+@app.get("/api/v1/swarm/stream")
+async def swarm_stream(goal: str, num_nodes: int = 3, token: str = ""):
+    """SSE endpoint so Dashboard can watch the swarm in real-time."""
+    try:
+        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+        conn = sqlite3.connect(DB_PATH)
+        row  = conn.execute("SELECT is_admin FROM users WHERE username=?",
+                            (payload["sub"],)).fetchone()
+        conn.close()
+        if not row or not row[0]: raise Exception()
+    except:
+        raise HTTPException(401, "Unauthorized")
+
+    kernel = NexusKernel()
+    orch   = SwarmOrchestrator(kernel, _swarm_bus)
+    specs  = ["research", "coding", "analysis", "review"]
+    n      = min(max(num_nodes, 1), 4)
+    nodes  = [SwarmNode(kernel, _swarm_bus, f"Node-{i+1}", specs[i % len(specs)])
+              for i in range(n)]
+
+    async def swarm_gen():
+        def emit(msg):
+            return f"data: {json.dumps({'type':'log','message':msg})}\n\n"
+        yield f"data: {json.dumps({'type':'start','nodes':n,'goal':goal[:80]})}\n\n"
+        logs = []
+        try:
+            result = await orch.run_swarm(goal, nodes, log_fn=logs.append)
+            for l in logs:
+                yield emit(l)
+            yield f"data: {json.dumps({'type':'complete','consensus':result['consensus'][:500],'nodes_used':result['nodes_used']})}\n\n"
+        except Exception as e:
+            yield f"data: {json.dumps({'type':'error','message':str(e)})}\n\n"
+
+    return StreamingResponse(swarm_gen(), media_type="text/event-stream")
+
+# ─── HEALTH & ROOT ────────────────────────────────────────────────────────────
 @app.get("/health")
-async def health(): return {"status": "ok", "version": "7.1"}
+async def health(): return {"status": "ok", "version": "8.0"}
 
 @app.get("/")
-async def root(): return {"name": "Project Nexus API", "version": "7.1", "docs": "/docs"}
+async def root(): return {"name": "Project Nexus API", "version": "8.0", "docs": "/docs"}
 
 @app.get("/pricing", response_class=HTMLResponse)
 async def pricing_page():
