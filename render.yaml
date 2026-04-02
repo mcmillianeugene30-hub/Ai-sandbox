@@ -35,7 +35,7 @@ services:
         sync: false
       - key: RENDER_SERVICE_ID
         sync: false
-    disk:
-      name: nexus-data
-      mountPath: /opt/render/project/src/backend/data
-      sizeGB: 1
+    # disk:
+    #   name: nexus-data
+    #   mountPath: /opt/render/project/src/backend/data
+    #   sizeGB: 1
