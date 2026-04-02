@@ -1,28 +1,26 @@
 {
   "version": 2,
   "name": "nexus-ai-os",
-  "builds": [
-    {
-      "src": "frontend/**",
-      "use": "@vercel/static"
-    },
-    {
-      "src": "nexus-ai-os/frontend/**",
-      "use": "@vercel/static"
-    }
-  ],
   "routes": [
     {
-      "src": "/nexus/(.*)",
-      "dest": "/nexus-ai-os/frontend/$1"
+      "src": "/dashboard",
+      "dest": "/frontend/dashboard.html"
+    },
+    {
+      "src": "/admin",
+      "dest": "/frontend/dashboard.html"
+    },
+    {
+      "src": "/nexus",
+      "dest": "/frontend/dashboard.html"
     },
     {
       "src": "/pricing",
       "dest": "/frontend/pricing.html"
     },
     {
-      "src": "/admin",
-      "dest": "/nexus-ai-os/frontend/dashboard.html"
+      "src": "/",
+      "dest": "/frontend/dashboard.html"
     },
     {
       "src": "/(.*)",
@@ -39,7 +37,7 @@
         },
         {
           "key": "X-Frame-Options",
-          "value": "DENY"
+          "value": "SAMEORIGIN"
         },
         {
           "key": "Referrer-Policy",

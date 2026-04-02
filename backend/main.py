@@ -482,6 +482,110 @@ async def export_starred(admin=Depends(get_admin)):
     return StreamingResponse(iter([jsonl]), media_type="application/x-jsonlines",
                              headers={"Content-Disposition":"attachment;filename=finetune.jsonl"})
 
+# ─── CHAT COMPLETIONS (core sandbox) ─────────────────────────────────────────
+class ChatRequest(BaseModel):
+    provider: str
+    model: str
+    messages: List[Dict[str, Any]]
+    temperature: float = 0.7
+    stream: bool = False
+    kb_enabled: bool = False
+
+@app.post("/api/v1/chat/completions")
+async def chat_completions(req: ChatRequest, user=Depends(get_user)):
+    check_model_access(user["plan"], req.model)
+    require_credits(user["id"], ACTION_COSTS["chat"], f"chat: {req.model}")
+    import sys as _sys; _sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+    from providers import get_provider
+    provider = get_provider(req.provider)
+    if not provider: raise HTTPException(400, f"Unknown provider: {req.provider}")
+    messages = req.messages
+    if req.kb_enabled:
+        from rag_manager import rag_manager
+        query = next((m["content"] for m in reversed(messages) if m["role"]=="user"), "")
+        ctx = rag_manager.query(query)
+        if ctx: messages = [{"role":"system","content":f"Context:\n{ctx}"}] + messages
+    env_key = {"groq":"GROQ_API_KEY","google":"GEMINI_API_KEY","openrouter":"OPENROUTER_API_KEY"}.get(req.provider,"")
+    api_key = os.environ.get(env_key,"")
+    t0 = time.time()
+    try:
+        result = provider.chat_complete(model=req.model, messages=messages,
+                                        temperature=req.temperature, api_key=api_key)
+        latency = int((time.time()-t0)*1000)
+        content = result["choices"][0]["message"]["content"]
+        log_usage(user["id"], req.provider, req.model, latency, "ok",
+                  messages[-1].get("content",""), content)
+        return result
+    except Exception as e:
+        log_usage(user["id"], req.provider, req.model, 0, f"error:{str(e)[:50]}")
+        raise HTTPException(500, str(e))
+
+@app.get("/api/v1/models")
+async def list_models():
+    return {"models": {
+        "groq":       ["llama-3.3-70b-versatile","llama-3.1-8b-instant"],
+        "google":     ["gemini-1.5-pro","gemini-1.5-flash"],
+        "openrouter": ["gpt-4o","claude-sonnet-4","mistral-7b"],
+        "ollama":     ["llama3","mistral","phi3"]
+    }}
+
+# ─── KB / RAG ─────────────────────────────────────────────────────────────────
+@app.post("/api/v1/kb/upload")
+async def kb_upload(file: UploadFile = File(...), user=Depends(get_user)):
+    require_credits(user["id"], ACTION_COSTS["rag_query"], "KB upload")
+    import sys as _sys; _sys.path.append(os.path.dirname(os.path.abspath(__file__)))
+    from rag_manager import rag_manager
+    dest = os.path.join(DATA_DIR, "uploads", file.filename)
+    os.makedirs(os.path.dirname(dest), exist_ok=True)
+    with open(dest, "wb") as f: f.write(await file.read())
+    if file.filename.endswith(".pdf"): rag_manager.ingest_pdf(dest)
+    else: rag_manager.ingest_text(open(dest).read())
+    return {"status": "indexed", "file": file.filename}
+
+# ─── SINGULARITY / SELF-MONITOR ───────────────────────────────────────────────
+@app.post("/api/v1/singularity/evolve")
+async def trigger_evolution(admin=Depends(get_admin)):
+    from agents.self_monitor import SelfMonitorAgent, RecursiveCoderAgent
+    from core.hot_swap import hot_swapper
+    kernel  = NexusKernel()
+    monitor = SelfMonitorAgent(kernel, db_path=DB_PATH)
+    coder   = RecursiveCoderAgent(kernel)
+    logs    = []
+    def log(m): logs.append(m); print(m)
+    log("🧠 Self-Monitor: Analysing usage logs...")
+    proposal = await monitor.analyze_performance("groq","llama-3.3-70b-versatile")
+    log(f"💡 Proposal: {proposal[:120]}...")
+    target = os.path.join(NEXUS_OS_PATH, "core", "kernel.py")
+    success = await coder.self_upgrade_core(proposal, target, "groq","llama-3.3-70b-versatile")
+    if success:
+        hot_swapper.reload_core("kernel")
+        log("🚀 EVOLUTION COMPLETE — Kernel hot-swapped.")
+    else:
+        log("⚠️ Evolution attempt failed — kernel unchanged.")
+    return {"success": success, "proposal_preview": proposal[:300], "logs": logs}
+
+@app.get("/api/v1/singularity/status")
+async def evolution_status(admin=Depends(get_admin)):
+    kernel_path = os.path.join(NEXUS_OS_PATH, "core", "kernel.py")
+    mtime = os.path.getmtime(kernel_path) if os.path.exists(kernel_path) else 0
+    conn = sqlite3.connect(DB_PATH)
+    errors = conn.execute("SELECT COUNT(*) FROM usage_logs WHERE status LIKE 'error%'").fetchone()[0]
+    total  = conn.execute("SELECT COUNT(*) FROM usage_logs").fetchone()[0]
+    conn.close()
+    return {"kernel_last_modified": datetime.fromtimestamp(mtime).isoformat() if mtime else None,
+            "total_requests": total, "error_count": errors,
+            "error_rate": round(errors/total*100,1) if total else 0}
+
+# ─── ANALYTICS ────────────────────────────────────────────────────────────────
+@app.get("/api/v1/analytics")
+async def analytics(user=Depends(get_user)):
+    conn = sqlite3.connect(DB_PATH)
+    rows = conn.execute("""SELECT provider,COUNT(*),SUM(cost_usd),AVG(latency_ms)
+                           FROM usage_logs WHERE user_id=? GROUP BY provider""",
+                        (user["id"],)).fetchall()
+    conn.close()
+    return [{"provider":r[0],"requests":r[1],"cost":r[2],"avg_latency":r[3]} for r in rows]
+
 # ─── NEXUS APP BUILDER (credit-gated) ─────────────────────────────────────────
 @app.get("/api/v1/nexus/app-build")
 async def stream_nexus_app_build(task: str, token: str):
