@@ -1,294 +1,199 @@
 """
-SwarmBus + SwarmNode — Frontier v8.0
-Multi-instance Nexus collaborative intelligence.
-
-Architecture:
-  SwarmBus  — shared message broker (SQLite-backed, upgradeable to Redis)
-  SwarmNode — one instance of Nexus that publishes/subscribes on the bus
-  SwarmOrchestrator — distributes tasks across nodes, aggregates results
+Swarm bus and orchestration primitives for Nexus AI OS.
+Provides SQLite-backed inter-node messaging with persistent storage rooted on RENDER_DISK_PATH.
 """
-import os
-import json
-import uuid
 import asyncio
+import json
+import logging
+import os
 import sqlite3
 import time
+import uuid
 from datetime import datetime
-from typing import Optional, List, Dict, Any
+from typing import Any, Dict, List, Optional
 
-SWARM_DB = os.path.join(
-    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-    "memory_db", "swarm.db"
-)
+from core.kernel import RENDER_DISK_PATH
 
-# ─── SwarmBus ─────────────────────────────────────────────────────────────────
+logger = logging.getLogger(__name__)
+
+SWARM_DB = os.path.join(RENDER_DISK_PATH, "memory_db", "swarm.db")
+
+
 class SwarmBus:
-    """Lightweight SQLite message bus. Drop-in replaceable with Redis."""
+    """Lightweight SQLite-backed message bus for inter-node coordination."""
 
     def __init__(self, db_path: str = SWARM_DB):
         self.db_path = db_path
-        os.makedirs(os.path.dirname(db_path), exist_ok=True)
+        os.makedirs(os.path.dirname(self.db_path), exist_ok=True)
         self._init()
 
-    def _init(self):
-        conn = sqlite3.connect(self.db_path)
-        conn.executescript("""
-            CREATE TABLE IF NOT EXISTS swarm_nodes (
-                node_id TEXT PRIMARY KEY,
-                name TEXT,
-                status TEXT DEFAULT 'idle',
-                specialization TEXT,
-                last_heartbeat REAL,
-                capabilities TEXT
-            );
-            CREATE TABLE IF NOT EXISTS swarm_messages (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                msg_id TEXT UNIQUE,
-                from_node TEXT,
-                to_node TEXT,        -- NULL = broadcast
-                msg_type TEXT,       -- TASK / RESULT / HEARTBEAT / BROADCAST
-                payload TEXT,
-                status TEXT DEFAULT 'pending',
-                created_at REAL,
-                processed_at REAL
-            );
-            CREATE TABLE IF NOT EXISTS swarm_results (
-                id INTEGER PRIMARY KEY AUTOINCREMENT,
-                task_id TEXT,
-                node_id TEXT,
-                result TEXT,
-                confidence REAL,
-                created_at REAL
-            );
-        """)
-        conn.commit(); conn.close()
+    def _connect(self) -> sqlite3.Connection:
+        """Create a SQLite connection configured for concurrent access."""
+        conn = sqlite3.connect(self.db_path, check_same_thread=False)
+        conn.row_factory = sqlite3.Row
+        conn.execute("PRAGMA journal_mode=WAL")
+        return conn
 
-    def register_node(self, node_id: str, name: str,
-                      specialization: str, capabilities: List[str]):
-        conn = sqlite3.connect(self.db_path)
-        conn.execute("""INSERT OR REPLACE INTO swarm_nodes
-                        (node_id, name, status, specialization, last_heartbeat, capabilities)
-                        VALUES (?,?,?,?,?,?)""",
-                     (node_id, name, "idle", specialization,
-                      time.time(), json.dumps(capabilities)))
-        conn.commit(); conn.close()
+    def _init(self) -> None:
+        """Create required swarm tables if they do not exist yet."""
+        try:
+            with self._connect() as conn:
+                conn.executescript(
+                    """
+                    CREATE TABLE IF NOT EXISTS swarm_nodes (
+                        node_id TEXT PRIMARY KEY,
+                        name TEXT,
+                        status TEXT DEFAULT 'idle',
+                        specialization TEXT,
+                        last_heartbeat REAL,
+                        capabilities TEXT
+                    );
+                    CREATE TABLE IF NOT EXISTS swarm_messages (
+                        id INTEGER PRIMARY KEY AUTOINCREMENT,
+                        msg_id TEXT UNIQUE,
+                        from_node TEXT,
+                        to_node TEXT,
+                        msg_type TEXT,
+                        payload TEXT,
+                        created_at REAL,
+                        consumed INTEGER DEFAULT 0
+                    );
+                    """
+                )
+            logger.info("SwarmBus initialised at %s", self.db_path)
+        except Exception as exc:
+            logger.error("SwarmBus initialisation failed: %s", exc, exc_info=True)
+            raise
 
-    def heartbeat(self, node_id: str, status: str = "idle"):
-        conn = sqlite3.connect(self.db_path)
-        conn.execute("UPDATE swarm_nodes SET last_heartbeat=?, status=? WHERE node_id=?",
-                     (time.time(), status, node_id))
-        conn.commit(); conn.close()
+    def register_node(self, node_id: str, name: str, specialization: str, capabilities: List[str]) -> None:
+        """Register or refresh a swarm node in the shared registry."""
+        try:
+            with self._connect() as conn:
+                conn.execute(
+                    """
+                    INSERT INTO swarm_nodes (node_id, name, status, specialization, last_heartbeat, capabilities)
+                    VALUES (?, ?, 'idle', ?, ?, ?)
+                    ON CONFLICT(node_id) DO UPDATE SET
+                        name=excluded.name,
+                        specialization=excluded.specialization,
+                        last_heartbeat=excluded.last_heartbeat,
+                        capabilities=excluded.capabilities
+                    """,
+                    (node_id, name, specialization, time.time(), json.dumps(capabilities)),
+                )
+            logger.debug("Swarm node registered node_id=%s", node_id)
+        except Exception as exc:
+            logger.error("register_node failed node_id=%s error=%s", node_id, exc, exc_info=True)
+            raise
 
-    def publish(self, from_node: str, to_node: Optional[str],
-                msg_type: str, payload: dict) -> str:
-        msg_id = str(uuid.uuid4())[:8]
-        conn = sqlite3.connect(self.db_path)
-        conn.execute("""INSERT INTO swarm_messages
-                        (msg_id, from_node, to_node, msg_type, payload, created_at)
-                        VALUES (?,?,?,?,?,?)""",
-                     (msg_id, from_node, to_node, msg_type,
-                      json.dumps(payload), time.time()))
-        conn.commit(); conn.close()
-        return msg_id
+    def heartbeat(self, node_id: str, status: str = "idle") -> None:
+        """Update heartbeat and status for a swarm node."""
+        try:
+            with self._connect() as conn:
+                conn.execute(
+                    "UPDATE swarm_nodes SET last_heartbeat=?, status=? WHERE node_id=?",
+                    (time.time(), status, node_id),
+                )
+        except Exception as exc:
+            logger.error("heartbeat failed node_id=%s error=%s", node_id, exc, exc_info=True)
+            raise
 
-    def consume(self, node_id: str, msg_type: str = None) -> List[dict]:
-        conn = sqlite3.connect(self.db_path)
-        query = """SELECT id, msg_id, from_node, msg_type, payload FROM swarm_messages
-                   WHERE status='pending' AND (to_node=? OR to_node IS NULL)"""
-        params = [node_id]
-        if msg_type:
-            query += " AND msg_type=?"
-            params.append(msg_type)
-        rows = conn.execute(query, params).fetchall()
-        # Mark as processed
-        if rows:
-            ids = [r[0] for r in rows]
-            conn.execute(f"UPDATE swarm_messages SET status='processed', processed_at=? WHERE id IN ({','.join('?'*len(ids))})",
-                         [time.time()] + ids)
-        conn.commit(); conn.close()
-        return [{"id": r[0], "msg_id": r[1], "from": r[2],
-                 "type": r[3], "payload": json.loads(r[4])} for r in rows]
+    def publish(self, from_node: str, msg_type: str, payload: Dict[str, Any], to_node: Optional[str] = None) -> str:
+        """Publish a directed or broadcast message to the swarm bus."""
+        msg_id = str(uuid.uuid4())
+        try:
+            with self._connect() as conn:
+                conn.execute(
+                    """
+                    INSERT INTO swarm_messages (msg_id, from_node, to_node, msg_type, payload, created_at, consumed)
+                    VALUES (?, ?, ?, ?, ?, ?, 0)
+                    """,
+                    (msg_id, from_node, to_node, msg_type, json.dumps(payload), time.time()),
+                )
+            logger.debug("Swarm message published msg_id=%s type=%s", msg_id, msg_type)
+            return msg_id
+        except Exception as exc:
+            logger.error("publish failed from_node=%s type=%s error=%s", from_node, msg_type, exc, exc_info=True)
+            raise
 
-    def store_result(self, task_id: str, node_id: str,
-                     result: Any, confidence: float = 0.8):
-        conn = sqlite3.connect(self.db_path)
-        conn.execute("""INSERT INTO swarm_results
-                        (task_id, node_id, result, confidence, created_at)
-                        VALUES (?,?,?,?,?)""",
-                     (task_id, node_id, json.dumps(result),
-                      confidence, time.time()))
-        conn.commit(); conn.close()
+    def consume(self, node_id: str, limit: int = 25) -> List[Dict[str, Any]]:
+        """Consume pending directed and broadcast messages for a node."""
+        try:
+            with self._connect() as conn:
+                rows = conn.execute(
+                    """
+                    SELECT * FROM swarm_messages
+                    WHERE consumed = 0 AND (to_node = ? OR to_node IS NULL)
+                    ORDER BY created_at ASC
+                    LIMIT ?
+                    """,
+                    (node_id, limit),
+                ).fetchall()
+                message_ids = [row["id"] for row in rows]
+                if message_ids:
+                    conn.executemany(
+                        "UPDATE swarm_messages SET consumed = 1 WHERE id = ?",
+                        [(message_id,) for message_id in message_ids],
+                    )
 
-    def get_results(self, task_id: str) -> List[dict]:
-        conn = sqlite3.connect(self.db_path)
-        rows = conn.execute("""SELECT node_id, result, confidence FROM swarm_results
-                               WHERE task_id=? ORDER BY confidence DESC""",
-                            (task_id,)).fetchall()
-        conn.close()
-        return [{"node": r[0], "result": json.loads(r[1]), "confidence": r[2]} for r in rows]
-
-    def get_live_nodes(self, timeout_secs: int = 60) -> List[dict]:
-        cutoff = time.time() - timeout_secs
-        conn = sqlite3.connect(self.db_path)
-        rows = conn.execute("""SELECT node_id, name, status, specialization, capabilities
-                               FROM swarm_nodes WHERE last_heartbeat > ?""",
-                            (cutoff,)).fetchall()
-        conn.close()
-        return [{"node_id": r[0], "name": r[1], "status": r[2],
-                 "spec": r[3], "caps": json.loads(r[4])} for r in rows]
+            messages = [
+                {
+                    "msg_id": row["msg_id"],
+                    "from_node": row["from_node"],
+                    "to_node": row["to_node"],
+                    "msg_type": row["msg_type"],
+                    "payload": json.loads(row["payload"]),
+                    "created_at": row["created_at"],
+                }
+                for row in rows
+            ]
+            return messages
+        except Exception as exc:
+            logger.error("consume failed node_id=%s error=%s", node_id, exc, exc_info=True)
+            return []
 
 
-# ─── SwarmNode ────────────────────────────────────────────────────────────────
 class SwarmNode:
-    """A single Nexus instance that participates in the swarm."""
+    """Single Nexus node that communicates through a shared SwarmBus."""
 
-    def __init__(self, kernel, bus: SwarmBus,
-                 name: str, specialization: str,
-                 capabilities: List[str] = None):
-        self.kernel  = kernel
-        self.bus     = bus
-        self.node_id = str(uuid.uuid4())[:8]
-        self.name    = name
-        self.spec    = specialization
-        self.caps    = capabilities or ["chat", "code", "research"]
-        self.bus.register_node(self.node_id, name, specialization, self.caps)
-        print(f"🟢 SwarmNode [{self.name}] online — ID: {self.node_id}")
+    def __init__(self, bus: SwarmBus, name: str, specialization: str, capabilities: Optional[List[str]] = None):
+        self.bus = bus
+        self.node_id = str(uuid.uuid4())
+        self.name = name
+        self.specialization = specialization
+        self.capabilities = capabilities or []
+        self.bus.register_node(self.node_id, self.name, self.specialization, self.capabilities)
 
-    async def process_task(self, task: dict) -> dict:
-        """Execute a task using this node's kernel."""
-        self.bus.heartbeat(self.node_id, "working")
-        prompt = task.get("prompt", "")
-        context = task.get("context", "")
-        full_prompt = f"{context}\n\nTask: {prompt}" if context else prompt
+    async def start_heartbeat(self, interval: int = 15) -> None:
+        """Continuously update the node heartbeat until the task is cancelled."""
+        while True:
+            try:
+                self.bus.heartbeat(self.node_id, status="active")
+            except Exception:
+                logger.exception("start_heartbeat failed for node_id=%s", self.node_id)
+            await asyncio.sleep(interval)
 
-        messages = [
-            {"role": "system", "content": f"You are a specialized AI node ({self.spec}). Be precise and thorough."},
-            {"role": "user",   "content": full_prompt}
-        ]
-        try:
-            result = await self.kernel.chat_async(
-                "groq", "llama-3.3-70b-versatile", messages
-            )
-            self.bus.heartbeat(self.node_id, "idle")
-            return {"status": "ok", "result": result, "node": self.name}
-        except Exception as e:
-            self.bus.heartbeat(self.node_id, "error")
-            return {"status": "error", "error": str(e), "node": self.name}
-
-    async def listen_and_work(self, iterations: int = 5) -> List[dict]:
-        """Poll the bus and execute any pending tasks."""
-        results = []
-        for _ in range(iterations):
-            messages = self.bus.consume(self.node_id, msg_type="TASK")
-            for msg in messages:
-                task_id = msg["payload"].get("task_id", msg["msg_id"])
-                result  = await self.process_task(msg["payload"])
-                self.bus.store_result(task_id, self.node_id, result, 0.85)
-                self.bus.publish(self.node_id, msg["from"], "RESULT",
-                                 {"task_id": task_id, "result": result})
-                results.append(result)
-            self.bus.heartbeat(self.node_id)
-            await asyncio.sleep(2)
-        return results
+    async def poll_messages(self, interval: int = 5) -> List[Dict[str, Any]]:
+        """Poll the swarm bus once after an optional wait interval."""
+        await asyncio.sleep(interval)
+        return self.bus.consume(self.node_id)
 
 
-# ─── SwarmOrchestrator ────────────────────────────────────────────────────────
 class SwarmOrchestrator:
-    """Distributes a complex goal across multiple SwarmNodes and aggregates."""
+    """High-level coordinator for dispatching work to swarm nodes and aggregating responses."""
 
-    def __init__(self, kernel, bus: SwarmBus):
-        self.kernel = kernel
-        self.bus    = bus
+    def __init__(self, bus: SwarmBus):
+        self.bus = bus
 
-    def _split_goal(self, goal: str, num_nodes: int) -> List[dict]:
-        """Naively split goal into sub-tasks; use AI for smarter splitting."""
-        return [{"id": i, "prompt": f"Sub-task {i+1} of {num_nodes}: {goal}",
-                 "focus": f"Part {i+1}"} for i in range(num_nodes)]
+    def dispatch_task(self, from_node: str, task: Dict[str, Any], to_node: Optional[str] = None) -> str:
+        """Dispatch a task payload into the swarm."""
+        return self.bus.publish(from_node=from_node, to_node=to_node, msg_type="task", payload=task)
 
-    async def ai_split(self, goal: str, num_nodes: int) -> List[dict]:
-        """Use the kernel to intelligently decompose a goal for the swarm."""
-        prompt = f"""You are the Nexus Swarm Orchestrator. Split this goal into {num_nodes} independent parallel sub-tasks for {num_nodes} AI nodes.
-Goal: {goal}
-Each node has specializations: research, coding, analysis, review, documentation.
-Return JSON array: [{{"node_spec":"...", "prompt":"...", "context":"..."}}]"""
-        try:
-            resp = await self.kernel.chat_async(
-                "groq", "llama-3.3-70b-versatile",
-                [{"role": "user", "content": prompt}]
-            )
-            if "```json" in resp: resp = resp.split("```json")[1].split("```")[0]
-            elif "[" in resp: resp = resp[resp.find("["):resp.rfind("]")+1]
-            tasks = json.loads(resp)
-            for i, t in enumerate(tasks): t["task_id"] = str(uuid.uuid4())[:8]
-            return tasks
-        except:
-            return self._split_goal(goal, num_nodes)
+    def publish_result(self, from_node: str, result: Dict[str, Any], to_node: Optional[str] = None) -> str:
+        """Publish a result payload into the swarm."""
+        return self.bus.publish(from_node=from_node, to_node=to_node, msg_type="result", payload=result)
 
-    async def aggregate_results(self, task_id: str, results: List[dict]) -> str:
-        """Synthesize multiple node results into one consensus answer."""
-        if not results: return "No results received."
-        if len(results) == 1: return results[0].get("result", {}).get("result", "")
-
-        combined = "\n\n".join([f"--- Node {r['node']} ---\n{r.get('result',{}).get('result','')}"
-                                 for r in results if r.get("status") == "ok"])
-        prompt = f"""You are the Swarm Consensus Engine. Multiple AI nodes worked on the same goal.
-Synthesize their outputs into one final, comprehensive answer:
-
-{combined}
-
-Produce a single unified response."""
-        try:
-            return await self.kernel.chat_async(
-                "groq", "llama-3.3-70b-versatile",
-                [{"role": "user", "content": prompt}]
-            )
-        except:
-            return combined
-
-    async def run_swarm(self, goal: str, nodes: List[SwarmNode],
-                        log_fn=None) -> dict:
-        """Full swarm execution: split → distribute → gather → aggregate."""
-        def log(msg):
-            print(msg)
-            if log_fn: log_fn(msg)
-
-        log(f"🐝 SwarmOrchestrator: Activating {len(nodes)} nodes for goal:")
-        log(f"   '{goal[:80]}...'")
-
-        # 1. AI-powered task decomposition
-        log("🧩 Decomposing goal into parallel sub-tasks...")
-        sub_tasks = await self.ai_split(goal, len(nodes))
-        log(f"   Created {len(sub_tasks)} sub-tasks")
-
-        # 2. Distribute tasks to nodes via bus
-        task_map = {}
-        for i, (node, sub) in enumerate(zip(nodes, sub_tasks)):
-            task_id = sub.get("task_id", str(uuid.uuid4())[:8])
-            self.bus.publish("orchestrator", node.node_id, "TASK",
-                             {"task_id": task_id, "prompt": sub["prompt"],
-                              "context": sub.get("context", "")})
-            task_map[task_id] = node.name
-            log(f"   📤 Task {task_id} → Node [{node.name}]")
-
-        # 3. All nodes work in parallel
-        log("⚡ All nodes executing in parallel...")
-        node_results = await asyncio.gather(*[n.listen_and_work(3) for n in nodes])
-
-        # 4. Collect and flatten results
-        all_results = [r for nr in node_results for r in nr]
-        log(f"   Collected {len(all_results)} results from swarm")
-
-        # 5. Aggregate into consensus
-        log("🧠 Synthesizing consensus from all nodes...")
-        consensus = await self.aggregate_results("swarm", all_results)
-
-        live = self.bus.get_live_nodes()
-        log(f"✅ Swarm complete. {len(live)} nodes still live.")
-
-        return {
-            "goal": goal,
-            "nodes_used": len(nodes),
-            "sub_tasks": len(sub_tasks),
-            "raw_results": all_results,
-            "consensus": consensus
-        }
+    def collect_results(self, node_id: str, limit: int = 100) -> List[Dict[str, Any]]:
+        """Collect result messages that are available for the given node."""
+        messages = self.bus.consume(node_id=node_id, limit=limit)
+        return [message for message in messages if message.get("msg_type") == "result"]

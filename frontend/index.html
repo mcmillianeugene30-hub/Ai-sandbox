@@ -1,96 +1,1775 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Project Nexus — AI Sandbox</title>
-    <link rel="stylesheet" href="style.css">
-    <!-- Monaco Editor styles via CDN -->
-    <link rel="stylesheet" data-name="vs/editor/editor.main" href="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.43.0/min/vs/editor/editor.main.min.css">
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+<title>Project Nexus v9.0 — Unified Dashboard</title>
+<script src="config.js" onerror="window.NEXUS_API='https://nexus-backend.onrender.com/api/v1'"></script>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Barlow+Condensed:wght@400;600;700&family=Barlow:wght@300;400;500&display=swap" rel="stylesheet"/>
+<style>
+/* ═══════════════════════════════════════════════
+   RESET & ROOT VARS
+═══════════════════════════════════════════════ */
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#050a0e;
+  --bg2:#080f14;
+  --bg3:#0d1a24;
+  --bg4:#102030;
+  --border:#1a3040;
+  --neon:#00ff88;
+  --cyan:#00d4ff;
+  --amber:#ffaa00;
+  --purple:#9d4edd;
+  --red:#ff4455;
+  --text:#c8e0ef;
+  --text2:#7a9ab0;
+  --text3:#3a5a70;
+  --sidebar:200px;
+  --header:52px;
+  --font-mono:'Share Tech Mono',monospace;
+  --font-head:'Barlow Condensed',sans-serif;
+  --font-body:'Barlow',sans-serif;
+}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--font-body);font-size:14px;overflow:hidden}
+a{color:var(--cyan);text-decoration:none}
+button{font-family:var(--font-mono);cursor:pointer;border:none;outline:none}
+input,select,textarea{font-family:var(--font-mono);outline:none}
+
+/* ═══════════════════════════════════════════════
+   SCANLINE OVERLAY
+═══════════════════════════════════════════════ */
+body::before{
+  content:'';position:fixed;inset:0;pointer-events:none;z-index:9999;
+  background:repeating-linear-gradient(0deg,transparent,transparent 2px,rgba(0,0,0,.08) 2px,rgba(0,0,0,.08) 4px);
+  animation:scan 8s linear infinite;
+}
+body::after{
+  content:'';position:fixed;inset:0;pointer-events:none;z-index:9998;
+  background:radial-gradient(ellipse at center,transparent 60%,rgba(0,5,10,.7) 100%);
+}
+@keyframes scan{0%{background-position:0 0}100%{background-position:0 100px}}
+
+/* ═══════════════════════════════════════════════
+   LAYOUT SHELL
+═══════════════════════════════════════════════ */
+#app{display:flex;flex-direction:column;height:100vh}
+#header{
+  height:var(--header);flex-shrink:0;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:0 20px;
+  background:linear-gradient(90deg,#050a0e 0%,#0a1820 100%);
+  border-bottom:1px solid var(--border);
+  box-shadow:0 2px 20px rgba(0,255,136,.07);
+  z-index:100;
+}
+#header .logo{
+  font-family:var(--font-head);font-size:22px;font-weight:700;
+  letter-spacing:2px;
+  background:linear-gradient(90deg,var(--neon),var(--cyan));
+  -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+}
+#header .logo span{color:var(--amber);-webkit-text-fill-color:var(--amber);font-size:13px;vertical-align:super;margin-left:4px}
+#header-right{display:flex;align-items:center;gap:12px}
+#badge-admin{
+  background:rgba(157,78,221,.2);border:1px solid var(--purple);
+  color:var(--purple);font-family:var(--font-mono);font-size:11px;
+  padding:2px 8px;border-radius:3px;letter-spacing:1px;
+}
+#credit-display{
+  font-family:var(--font-mono);font-size:12px;color:var(--amber);
+  background:rgba(255,170,0,.08);border:1px solid rgba(255,170,0,.2);
+  padding:3px 10px;border-radius:3px;
+}
+#btn-logout{
+  background:rgba(255,68,85,.1);border:1px solid rgba(255,68,85,.3);
+  color:var(--red);padding:4px 14px;border-radius:3px;font-size:12px;
+  transition:.2s;
+}
+#btn-logout:hover{background:rgba(255,68,85,.25)}
+
+#main{display:flex;flex:1;overflow:hidden}
+
+/* ═══════════════════════════════════════════════
+   SIDEBAR
+═══════════════════════════════════════════════ */
+#sidebar{
+  width:var(--sidebar);flex-shrink:0;
+  background:var(--bg2);
+  border-right:1px solid var(--border);
+  display:flex;flex-direction:column;
+  padding:12px 0;
+  overflow-y:auto;
+}
+.nav-item{
+  display:flex;align-items:center;gap:8px;
+  padding:9px 16px;
+  font-family:var(--font-mono);font-size:12px;
+  color:var(--text2);
+  cursor:pointer;border-left:3px solid transparent;
+  transition:.15s;white-space:nowrap;
+  user-select:none;
+}
+.nav-item:hover{background:rgba(0,255,136,.05);color:var(--text)}
+.nav-item.active{
+  background:rgba(0,255,136,.07);color:var(--neon);
+  border-left-color:var(--neon);
+}
+.nav-item .icon{font-size:14px;width:18px;text-align:center}
+.nav-sep{height:1px;background:var(--border);margin:6px 12px}
+
+/* ═══════════════════════════════════════════════
+   CONTENT AREA
+═══════════════════════════════════════════════ */
+#content{flex:1;overflow:hidden;position:relative}
+.tab-pane{display:none;height:100%;overflow-y:auto;padding:20px;flex-direction:column;gap:16px}
+.tab-pane.active{display:flex}
+
+/* ═══════════════════════════════════════════════
+   SHARED COMPONENTS
+═══════════════════════════════════════════════ */
+.card{
+  background:var(--bg3);border:1px solid var(--border);
+  border-radius:6px;padding:16px;
+}
+.card-title{
+  font-family:var(--font-head);font-size:15px;font-weight:600;
+  letter-spacing:1px;color:var(--cyan);margin-bottom:12px;
+  text-transform:uppercase;
+}
+.row{display:flex;gap:12px;flex-wrap:wrap}
+.col{flex:1;min-width:180px}
+
+/* KPI cards */
+.kpi-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(160px,1fr));gap:12px}
+.kpi{
+  background:var(--bg4);border:1px solid var(--border);border-radius:6px;
+  padding:14px;text-align:center;
+}
+.kpi-val{
+  font-family:var(--font-head);font-size:28px;font-weight:700;
+  color:var(--neon);line-height:1.1;
+}
+.kpi-val.cyan{color:var(--cyan)}
+.kpi-val.amber{color:var(--amber)}
+.kpi-val.purple{color:var(--purple)}
+.kpi-label{font-size:11px;color:var(--text2);font-family:var(--font-mono);margin-top:4px;letter-spacing:.5px}
+
+/* Buttons */
+.btn{
+  display:inline-flex;align-items:center;gap:6px;
+  padding:7px 16px;border-radius:4px;font-size:12px;
+  font-family:var(--font-mono);letter-spacing:.5px;
+  transition:.2s;cursor:pointer;
+}
+.btn-neon{background:rgba(0,255,136,.1);border:1px solid var(--neon);color:var(--neon)}
+.btn-neon:hover{background:rgba(0,255,136,.2);box-shadow:0 0 12px rgba(0,255,136,.3)}
+.btn-cyan{background:rgba(0,212,255,.1);border:1px solid var(--cyan);color:var(--cyan)}
+.btn-cyan:hover{background:rgba(0,212,255,.2)}
+.btn-amber{background:rgba(255,170,0,.1);border:1px solid var(--amber);color:var(--amber)}
+.btn-amber:hover{background:rgba(255,170,0,.2)}
+.btn-red{background:rgba(255,68,85,.1);border:1px solid var(--red);color:var(--red)}
+.btn-red:hover{background:rgba(255,68,85,.2)}
+.btn-purple{background:rgba(157,78,221,.1);border:1px solid var(--purple);color:var(--purple)}
+.btn-purple:hover{background:rgba(157,78,221,.2)}
+.btn-sm{padding:4px 10px;font-size:11px}
+
+/* Inputs */
+.inp{
+  background:var(--bg4);border:1px solid var(--border);
+  color:var(--text);border-radius:4px;padding:7px 10px;
+  font-size:12px;width:100%;transition:.15s;
+}
+.inp:focus{border-color:var(--cyan);box-shadow:0 0 8px rgba(0,212,255,.15)}
+select.inp option{background:var(--bg3)}
+
+/* Tables */
+.tbl-wrap{overflow-x:auto;max-height:360px;overflow-y:auto}
+table{width:100%;border-collapse:collapse;font-family:var(--font-mono);font-size:12px}
+thead th{
+  background:var(--bg4);color:var(--cyan);
+  padding:8px 10px;text-align:left;font-weight:400;
+  letter-spacing:.5px;border-bottom:1px solid var(--border);
+  position:sticky;top:0;z-index:2;
+}
+tbody tr{border-bottom:1px solid rgba(26,48,64,.5);transition:.15s}
+tbody tr:hover{background:rgba(0,255,136,.03)}
+tbody td{padding:7px 10px;color:var(--text)}
+td .badge{
+  display:inline-block;padding:2px 7px;border-radius:3px;font-size:10px;
+  font-family:var(--font-mono);letter-spacing:.5px;
+}
+.badge-free{background:rgba(122,154,176,.15);color:var(--text2);border:1px solid rgba(122,154,176,.2)}
+.badge-pro{background:rgba(0,212,255,.1);color:var(--cyan);border:1px solid rgba(0,212,255,.2)}
+.badge-ent{background:rgba(157,78,221,.1);color:var(--purple);border:1px solid rgba(157,78,221,.2)}
+
+/* Terminal / Log */
+.terminal{
+  background:#020810;border:1px solid var(--border);border-radius:4px;
+  padding:12px;font-family:var(--font-mono);font-size:12px;
+  color:#7aff88;overflow-y:auto;min-height:180px;max-height:400px;
+  line-height:1.7;
+}
+.terminal .t-dim{color:var(--text3)}
+.terminal .t-warn{color:var(--amber)}
+.terminal .t-err{color:var(--red)}
+.terminal .t-info{color:var(--cyan)}
+.terminal .t-ok{color:var(--neon)}
+
+/* Toggle switch */
+.toggle-wrap{display:flex;align-items:center;gap:8px;font-family:var(--font-mono);font-size:12px;color:var(--text2)}
+.toggle{position:relative;display:inline-block;width:38px;height:20px}
+.toggle input{opacity:0;width:0;height:0}
+.toggle-slider{
+  position:absolute;inset:0;background:var(--bg4);border:1px solid var(--border);
+  border-radius:20px;transition:.25s;cursor:pointer;
+}
+.toggle-slider::before{
+  content:'';position:absolute;height:14px;width:14px;
+  left:2px;bottom:2px;background:var(--text3);border-radius:50%;transition:.25s;
+}
+.toggle input:checked+.toggle-slider{border-color:var(--neon);background:rgba(0,255,136,.1)}
+.toggle input:checked+.toggle-slider::before{background:var(--neon);transform:translateX(18px)}
+
+/* Label */
+.lbl{font-family:var(--font-mono);font-size:11px;color:var(--text2);margin-bottom:4px;letter-spacing:.5px;text-transform:uppercase}
+
+/* Status dot */
+.dot{display:inline-block;width:7px;height:7px;border-radius:50%;margin-right:6px}
+.dot-green{background:var(--neon);box-shadow:0 0 6px var(--neon)}
+.dot-amber{background:var(--amber);box-shadow:0 0 6px var(--amber)}
+.dot-red{background:var(--red);box-shadow:0 0 6px var(--red)}
+
+/* ═══════════════════════════════════════════════
+   LOGIN MODAL
+═══════════════════════════════════════════════ */
+#login-overlay{
+  position:fixed;inset:0;z-index:10000;
+  background:rgba(2,8,16,.95);
+  display:flex;align-items:center;justify-content:center;
+  backdrop-filter:blur(4px);
+}
+#login-box{
+  background:var(--bg3);border:1px solid var(--border);
+  border-radius:8px;padding:40px;width:380px;
+  box-shadow:0 0 60px rgba(0,255,136,.08),0 0 120px rgba(0,212,255,.04);
+}
+#login-box h2{
+  font-family:var(--font-head);font-size:26px;font-weight:700;
+  color:var(--neon);letter-spacing:2px;text-align:center;margin-bottom:6px;
+}
+#login-box .sub{
+  font-family:var(--font-mono);font-size:11px;color:var(--text2);
+  text-align:center;margin-bottom:28px;letter-spacing:1px;
+}
+#login-box .field{margin-bottom:16px}
+#login-box .field .lbl{margin-bottom:6px}
+#login-err{
+  font-family:var(--font-mono);font-size:12px;color:var(--red);
+  text-align:center;margin-top:10px;min-height:18px;
+}
+#btn-login{
+  width:100%;padding:11px;margin-top:6px;
+  background:rgba(0,255,136,.1);border:1px solid var(--neon);
+  color:var(--neon);font-family:var(--font-head);font-size:16px;
+  font-weight:600;letter-spacing:2px;border-radius:4px;
+  transition:.2s;cursor:pointer;
+}
+#btn-login:hover{background:rgba(0,255,136,.2);box-shadow:0 0 20px rgba(0,255,136,.25)}
+
+/* ═══════════════════════════════════════════════
+   SANDBOX TAB
+═══════════════════════════════════════════════ */
+.sandbox-layout{display:flex;gap:12px;flex:1;min-height:0}
+.sandbox-left{flex:1;display:flex;flex-direction:column;gap:8px;min-width:0}
+.sandbox-right{width:360px;display:flex;flex-direction:column;gap:8px}
+.sandbox-controls{display:flex;gap:8px;flex-wrap:wrap;align-items:flex-end}
+#editor-wrap{flex:1;min-height:240px;border:1px solid var(--border);border-radius:4px;overflow:hidden}
+.console-wrap{
+  background:#020810;border:1px solid var(--border);border-radius:4px;
+  padding:10px;font-family:var(--font-mono);font-size:12px;
+  color:#7aff88;height:180px;overflow-y:auto;
+}
+.compare-panes{display:flex;gap:8px;flex:1;min-height:0}
+.compare-pane{
+  flex:1;background:#020810;border:1px solid var(--border);border-radius:4px;
+  padding:10px;font-family:var(--font-mono);font-size:12px;color:#7aff88;overflow-y:auto;
+}
+.compare-pane .pane-label{font-family:var(--font-head);font-size:13px;color:var(--cyan);margin-bottom:6px;letter-spacing:1px}
+
+/* ═══════════════════════════════════════════════
+   SWARM NODE GRID
+═══════════════════════════════════════════════ */
+.node-grid{display:flex;flex-wrap:wrap;gap:8px;margin-bottom:8px}
+.node-card{
+  background:var(--bg4);border:1px solid var(--border);border-radius:5px;
+  padding:10px 14px;font-family:var(--font-mono);font-size:11px;
+  color:var(--text2);transition:.2s;min-width:120px;
+}
+.node-card.active{border-color:var(--neon);color:var(--neon);box-shadow:0 0 10px rgba(0,255,136,.15)}
+
+/* ═══════════════════════════════════════════════
+   SCROLLBAR
+═══════════════════════════════════════════════ */
+::-webkit-scrollbar{width:6px;height:6px}
+::-webkit-scrollbar-track{background:var(--bg2)}
+::-webkit-scrollbar-thumb{background:#1a3040;border-radius:3px}
+::-webkit-scrollbar-thumb:hover{background:#2a4858}
+
+/* ═══════════════════════════════════════════════
+   MISC
+═══════════════════════════════════════════════ */
+.sep{height:1px;background:var(--border);margin:4px 0}
+.text-neon{color:var(--neon)}
+.text-cyan{color:var(--cyan)}
+.text-amber{color:var(--amber)}
+.text-red{color:var(--red)}
+.text-purple{color:var(--purple)}
+.flex-row{display:flex;align-items:center;gap:10px}
+.flex-between{display:flex;justify-content:space-between;align-items:center}
+.mt4{margin-top:4px}.mt8{margin-top:8px}.mt12{margin-top:12px}
+.spin{display:inline-block;animation:spin .7s linear infinite}
+@keyframes spin{to{transform:rotate(360deg)}}
+.glow-neon{text-shadow:0 0 8px var(--neon)}
+.glow-cyan{text-shadow:0 0 8px var(--cyan)}
+#tab-sandbox .tab-pane{padding:16px}
+</style>
 </head>
 <body>
-    <header>
-        <div class="logo">AI Sandbox <span>v3.0</span></div>
-        <div class="controls">
-            <select id="provider-select">
-                <option value="gemini">Gemini</option>
-                <option value="groq">Groq</option>
-                <option value="openrouter">OpenRouter</option>
-                <option value="ollama">Ollama (Local)</option>
+
+<!-- ══════════════════ LOGIN MODAL ══════════════════ -->
+<div id="login-overlay">
+  <div id="login-box">
+    <h2>NEXUS v9.0</h2>
+    <p class="sub">PROJECT NEXUS v9.0 UNIFIED CONTROL CENTER</p>
+    <div class="field">
+      <div class="lbl">Username</div>
+      <input id="inp-user" class="inp" type="text" placeholder="nexus" autocomplete="username"/>
+    </div>
+    <div class="field">
+      <div class="lbl">Password</div>
+      <input id="inp-pass" class="inp" type="password" placeholder="••••••••" autocomplete="current-password"/>
+    </div>
+    <button id="btn-login">LOGIN →</button>
+    <div id="login-err"></div>
+  </div>
+</div>
+
+<!-- ══════════════════ APP SHELL ══════════════════ -->
+<div id="app" style="display:none">
+  <!-- HEADER -->
+  <div id="header">
+    <div class="logo">NEXUS<span>v9.0</span></div>
+    <div id="header-right">
+      <span id="badge-admin" style="display:none">[ADMIN]</span>
+      <span id="credit-display" style="display:none">⚡ <span id="credit-val">—</span> cr</span>
+      <button id="btn-logout" class="btn">LOGOUT</button>
+    </div>
+  </div>
+
+  <!-- BODY -->
+  <div id="main">
+    <!-- SIDEBAR -->
+    <nav id="sidebar">
+      <div class="nav-item active" data-tab="sandbox"><span class="icon">🔬</span>SANDBOX</div>
+      <div class="nav-item" data-tab="overview"><span class="icon">📊</span>OVERVIEW</div>
+      <div class="nav-item" data-tab="users"><span class="icon">👤</span>USERS</div>
+      <div class="nav-item" data-tab="logs"><span class="icon">📋</span>LOGS</div>
+      <div class="nav-item" data-tab="billing"><span class="icon">💳</span>BILLING</div>
+      <div class="nav-sep"></div>
+      <div class="nav-item" data-tab="swarm"><span class="icon">🐝</span>SWARM</div>
+      <div class="nav-item" data-tab="models"><span class="icon">🔍</span>MODELS</div>
+      <div class="nav-item" data-tab="deploy"><span class="icon">🚀</span>DEPLOY</div>
+      <div class="nav-item" data-tab="singularity"><span class="icon">🧬</span>SINGULARITY</div>
+      <div class="nav-sep"></div>
+      <div class="nav-item" data-tab="terminal"><span class="icon">⚡</span>TERMINAL</div>
+    </nav>
+
+    <!-- CONTENT -->
+    <div id="content">
+
+      <!-- ══ SANDBOX ══ -->
+      <div id="tab-sandbox" class="tab-pane active" style="flex-direction:column;gap:10px">
+        <div class="flex-between">
+          <div style="font-family:var(--font-head);font-size:18px;font-weight:700;letter-spacing:1px;color:var(--neon)">🔬 PROJECT NEXUS v9.0 SANDBOX</div>
+          <div class="flex-row" style="gap:10px">
+            <div class="toggle-wrap">
+              <label class="toggle"><input type="checkbox" id="sb-stream"><span class="toggle-slider"></span></label>
+              STREAM
+            </div>
+            <div class="toggle-wrap">
+              <label class="toggle"><input type="checkbox" id="sb-rag"><span class="toggle-slider"></span></label>
+              RAG
+            </div>
+            <div class="toggle-wrap">
+              <label class="toggle"><input type="checkbox" id="sb-compare"><span class="toggle-slider"></span></label>
+              COMPARE
+            </div>
+          </div>
+        </div>
+
+        <!-- Controls row -->
+        <div class="sandbox-controls card" style="padding:10px">
+          <div class="col" style="max-width:150px">
+            <div class="lbl">Provider</div>
+            <select id="sb-provider" class="inp">
+              <option value="openai">OpenAI</option>
+              <option value="anthropic">Anthropic</option>
+              <option value="google">Google</option>
+              <option value="mistral">Mistral</option>
+              <option value="groq">Groq</option>
+              <option value="together">Together</option>
+              <option value="cohere">Cohere</option>
             </select>
-            <select id="model-select"></select>
-            <input type="password" id="api-key" placeholder="API Key">
-            <label class="toggle-container">
-                <input type="checkbox" id="stream-toggle" checked>
-                <span>Stream</span>
-            </label>
-            <label class="toggle-container">
-                <input type="checkbox" id="kb-toggle">
-                <span>RAG</span>
-            </label>
-            <button id="run-btn">Run Code</button>
-            <button id="compare-btn" class="secondary-btn">Compare Mode</button>
-            <div class="dropdown">
-                <button class="dropbtn">Export</button>
-                <div class="dropdown-content">
-                    <a href="#" onclick="exportCode('react')">React Hook</a>
-                    <a href="#" onclick="exportCode('flutter')">Flutter Provider</a>
-                </div>
-            </div>
-            <button id="kb-btn" class="secondary-btn">KB</button>
-            <button id="analytics-btn" class="secondary-btn">Stats</button>
+          </div>
+          <div class="col" style="max-width:220px">
+            <div class="lbl">Model</div>
+            <select id="sb-model" class="inp">
+              <option value="gpt-4o">gpt-4o</option>
+              <option value="gpt-4o-mini">gpt-4o-mini</option>
+              <option value="claude-3-5-sonnet-20241022">claude-3-5-sonnet</option>
+              <option value="gemini-1.5-pro">gemini-1.5-pro</option>
+              <option value="mistral-large-latest">mistral-large</option>
+              <option value="llama-3.1-70b-versatile">llama-3.1-70b</option>
+            </select>
+          </div>
+          <div class="col" style="max-width:220px" id="sb-compare-col" style="display:none">
+            <div class="lbl">Compare Model</div>
+            <select id="sb-model2" class="inp">
+              <option value="claude-3-5-sonnet-20241022">claude-3-5-sonnet</option>
+              <option value="gpt-4o">gpt-4o</option>
+              <option value="gemini-1.5-pro">gemini-1.5-pro</option>
+            </select>
+          </div>
+          <div class="col">
+            <div class="lbl">API Key Override (optional)</div>
+            <input id="sb-apikey" class="inp" type="password" placeholder="sk-…  (leave blank to use server key)"/>
+          </div>
+          <div style="align-self:flex-end">
+            <button id="btn-sb-run" class="btn btn-neon">▶ RUN CODE</button>
+          </div>
+          <div style="align-self:flex-end">
+            <button id="btn-sb-clear" class="btn btn-cyan btn-sm">CLEAR</button>
+          </div>
         </div>
-    </header>
-    
-    <div id="kb-modal" class="modal">
-        <div class="modal-content">
-            <span class="close-kb close">&times;</span>
-            <h2>Knowledge Base (RAG)</h2>
-            <p>Upload PDFs or Text files to provide context to your AI calls.</p>
-            <input type="file" id="kb-file-input" accept=".pdf,.txt">
-            <button id="kb-upload-btn">Upload to Vector DB</button>
-            <div id="kb-status"></div>
-        </div>
-    </div>
-    
-    <div id="analytics-modal" class="modal">
-        <div class="modal-content">
-            <span class="close">&times;</span>
-            <h2>Usage Analytics</h2>
-            <div id="analytics-content">Loading...</div>
-        </div>
-    </div>
-    
-    <main id="single-view">
-        <div id="editor-container"></div>
-        <div id="output-panel">
-            <div class="panel-header">Console Output</div>
-            <pre id="output-content">Welcome to AI Sandbox v3. Click 'Run Code' to test your integration.</pre>
-        </div>
-    </main>
 
-    <main id="compare-view" style="display: none;">
-        <div class="compare-pane" id="pane-a">
-            <div class="pane-header">Model A (Current)</div>
-            <pre id="output-a" class="compare-output"></pre>
-        </div>
-        <div class="compare-pane" id="pane-b">
-            <div class="pane-header">Model B (Select Below)
-                <select id="compare-provider-select"></select>
-                <select id="compare-model-select"></select>
+        <!-- Editor + Output -->
+        <div class="sandbox-layout" style="flex:1;min-height:0">
+          <div class="sandbox-left">
+            <div class="lbl">EDITOR</div>
+            <div id="editor-wrap" style="flex:1;min-height:280px;border:1px solid var(--border);border-radius:4px;"></div>
+          </div>
+          <div class="sandbox-right">
+            <div class="lbl">OUTPUT CONSOLE</div>
+            <div id="sb-console" class="console-wrap" style="flex:1;min-height:280px">
+              <span class="t-dim">// Run code to see output…</span>
             </div>
-            <pre id="output-b" class="compare-output"></pre>
+          </div>
         </div>
-    </main>
 
-    <!-- Render backend URL: set window.__NEXUS_API_URL__ before this script -->
-    <script>
-      // Vercel env injection: Vercel replaces @VITE_API_URL@ at build via vercel.json env
-      window.__NEXUS_API_URL__ = "VITE_API_URL" !== "VITE_API_URL"
-        ? "VITE_API_URL" : null;
-    </script>
-    <script src="config.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.43.0/min/vs/loader.min.js"></script>
-    <script src="script.js"></script>
+        <!-- Compare panes (hidden by default) -->
+        <div id="compare-section" style="display:none;flex:1;min-height:200px;flex-direction:column;gap:6px">
+          <div class="lbl">COMPARE OUTPUT</div>
+          <div class="compare-panes">
+            <div class="compare-pane"><div class="pane-label" id="cp-lbl1">MODEL A</div><div id="cp-out1" class="t-dim">// Waiting…</div></div>
+            <div class="compare-pane"><div class="pane-label" id="cp-lbl2">MODEL B</div><div id="cp-out2" class="t-dim">// Waiting…</div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══ OVERVIEW ══ -->
+      <div id="tab-overview" class="tab-pane">
+        <div class="flex-between">
+          <div style="font-family:var(--font-head);font-size:18px;font-weight:700;color:var(--cyan)">📊 NEXUS v9.0 OVERVIEW</div>
+          <button id="btn-refresh-overview" class="btn btn-cyan btn-sm">↻ REFRESH</button>
+        </div>
+
+        <div class="kpi-grid" id="ov-kpis">
+          <div class="kpi"><div class="kpi-val" id="ov-users">—</div><div class="kpi-label">TOTAL USERS</div></div>
+          <div class="kpi"><div class="kpi-val cyan" id="ov-mrr">—</div><div class="kpi-label">MRR ($)</div></div>
+          <div class="kpi"><div class="kpi-val amber" id="ov-arr">—</div><div class="kpi-label">ARR ($)</div></div>
+          <div class="kpi"><div class="kpi-val purple" id="ov-api-cost">—</div><div class="kpi-label">API COST ($)</div></div>
+          <div class="kpi"><div class="kpi-val" id="ov-active">—</div><div class="kpi-label">ACTIVE (30d)</div></div>
+          <div class="kpi"><div class="kpi-val cyan" id="ov-requests">—</div><div class="kpi-label">TOTAL REQUESTS</div></div>
+        </div>
+
+        <div class="row">
+          <div class="col card">
+            <div class="card-title">Plan Breakdown</div>
+            <div class="tbl-wrap">
+              <table>
+                <thead><tr><th>Plan</th><th>Users</th><th>Revenue ($)</th><th>% Share</th></tr></thead>
+                <tbody id="ov-plan-tbl"><tr><td colspan="4" class="t-dim" style="padding:12px;text-align:center">Loading…</td></tr></tbody>
+              </table>
+            </div>
+          </div>
+          <div class="col card">
+            <div class="card-title">Model Usage</div>
+            <div class="tbl-wrap">
+              <table>
+                <thead><tr><th>Model</th><th>Calls</th><th>Tokens</th><th>Cost ($)</th></tr></thead>
+                <tbody id="ov-model-tbl"><tr><td colspan="4" class="t-dim" style="padding:12px;text-align:center">Loading…</td></tr></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══ USERS ══ -->
+      <div id="tab-users" class="tab-pane">
+        <div class="flex-between">
+          <div style="font-family:var(--font-head);font-size:18px;font-weight:700;color:var(--cyan)">👤 USER MANAGEMENT</div>
+          <div class="flex-row">
+            <input id="user-search" class="inp" style="width:200px" placeholder="Search users…"/>
+            <button id="btn-refresh-users" class="btn btn-cyan btn-sm">↻ REFRESH</button>
+          </div>
+        </div>
+        <div class="card" style="flex:1;min-height:0;display:flex;flex-direction:column">
+          <div class="tbl-wrap" style="max-height:unset;flex:1">
+            <table>
+              <thead>
+                <tr>
+                  <th>ID</th><th>Username</th><th>Email</th><th>Plan</th>
+                  <th>Credits</th><th>Joined</th><th>Actions</th>
+                </tr>
+              </thead>
+              <tbody id="users-tbl"><tr><td colspan="7" style="padding:20px;text-align:center;color:var(--text2)">Loading users…</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══ LOGS ══ -->
+      <div id="tab-logs" class="tab-pane">
+        <div class="flex-between">
+          <div style="font-family:var(--font-head);font-size:18px;font-weight:700;color:var(--cyan)">📋 USAGE AUDIT LOGS</div>
+          <div class="flex-row">
+            <button id="btn-export-logs" class="btn btn-amber btn-sm">↓ EXPORT JSONL</button>
+            <button id="btn-refresh-logs" class="btn btn-cyan btn-sm">↻ REFRESH</button>
+          </div>
+        </div>
+        <div class="card" style="flex:1;min-height:0">
+          <div class="tbl-wrap" style="max-height:unset">
+            <table>
+              <thead>
+                <tr>
+                  <th>★</th><th>ID</th><th>User</th><th>Model</th>
+                  <th>Tokens</th><th>Cost</th><th>Time</th><th>Status</th>
+                </tr>
+              </thead>
+              <tbody id="logs-tbl"><tr><td colspan="8" style="padding:20px;text-align:center;color:var(--text2)">Loading logs…</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══ BILLING ══ -->
+      <div id="tab-billing" class="tab-pane">
+        <div class="flex-between">
+          <div style="font-family:var(--font-head);font-size:18px;font-weight:700;color:var(--cyan)">💳 BILLING CONFIGURATION</div>
+          <button id="btn-refresh-billing" class="btn btn-cyan btn-sm">↻ REFRESH</button>
+        </div>
+
+        <div class="row">
+          <div class="col card">
+            <div class="card-title">Subscription Plans</div>
+            <div class="tbl-wrap">
+              <table>
+                <thead><tr><th>Plan</th><th>Price/mo</th><th>Credits</th><th>Features</th></tr></thead>
+                <tbody id="billing-plans-tbl"><tr><td colspan="4" class="t-dim" style="padding:10px">Loading…</td></tr></tbody>
+              </table>
+            </div>
+          </div>
+          <div class="col card">
+            <div class="card-title">Top-Up Packs</div>
+            <div class="tbl-wrap">
+              <table>
+                <thead><tr><th>Pack</th><th>Credits</th><th>Price</th><th>Bonus</th></tr></thead>
+                <tbody id="billing-packs-tbl"><tr><td colspan="4" class="t-dim" style="padding:10px">Loading…</td></tr></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Credit Economy Summary</div>
+          <div id="billing-economy" class="kpi-grid">
+            <div class="kpi"><div class="kpi-val amber" id="eco-issued">—</div><div class="kpi-label">CREDITS ISSUED</div></div>
+            <div class="kpi"><div class="kpi-val" id="eco-consumed">—</div><div class="kpi-label">CREDITS CONSUMED</div></div>
+            <div class="kpi"><div class="kpi-val cyan" id="eco-balance">—</div><div class="kpi-label">NET BALANCE</div></div>
+            <div class="kpi"><div class="kpi-val purple" id="eco-revenue">—</div><div class="kpi-label">TOTAL REVENUE ($)</div></div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══ SWARM ══ -->
+      <div id="tab-swarm" class="tab-pane">
+        <div style="font-family:var(--font-head);font-size:18px;font-weight:700;color:var(--amber)">🐝 SWARM INTELLIGENCE</div>
+
+        <div class="card">
+          <div class="card-title">Swarm Configuration</div>
+          <div class="row" style="align-items:flex-end">
+            <div class="col">
+              <div class="lbl">Swarm Goal</div>
+              <input id="swarm-goal" class="inp" type="text" placeholder="Describe the swarm objective…"/>
+            </div>
+            <div style="max-width:120px">
+              <div class="lbl">Nodes</div>
+              <select id="swarm-nodes" class="inp">
+                <option>3</option><option selected>5</option><option>8</option>
+                <option>12</option><option>16</option>
+              </select>
+            </div>
+            <button id="btn-swarm-activate" class="btn btn-amber">⚡ ACTIVATE SWARM</button>
+            <button id="btn-swarm-refresh" class="btn btn-cyan btn-sm">↻ NODES</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Node Status</div>
+          <div id="swarm-node-grid" class="node-grid">
+            <div style="font-family:var(--font-mono);font-size:12px;color:var(--text2)">No nodes loaded. Click ↻ NODES.</div>
+          </div>
+        </div>
+
+        <div class="row" style="flex:1;min-height:0">
+          <div class="col card" style="display:flex;flex-direction:column">
+            <div class="card-title">Live Swarm Log</div>
+            <div id="swarm-log" class="terminal" style="flex:1">
+              <span class="t-dim">// Swarm not yet activated…</span>
+            </div>
+          </div>
+          <div class="col card" style="max-width:320px;display:flex;flex-direction:column">
+            <div class="card-title">Consensus Output</div>
+            <div id="swarm-consensus" class="terminal" style="flex:1">
+              <span class="t-dim">// Pending…</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══ MODELS ══ -->
+      <div id="tab-models" class="tab-pane">
+        <div class="flex-between">
+          <div style="font-family:var(--font-head);font-size:18px;font-weight:700;color:var(--purple)">🔍 MODEL DISCOVERY</div>
+          <div class="flex-row">
+            <button id="btn-scan-models" class="btn btn-purple">🔍 SCAN PROVIDERS</button>
+            <button id="btn-refresh-registry" class="btn btn-cyan btn-sm">↻ REGISTRY</button>
+          </div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Discovery Log</div>
+          <div id="models-disc-log" class="terminal" style="min-height:120px;max-height:180px">
+            <span class="t-dim">// Run a scan to discover models…</span>
+          </div>
+        </div>
+
+        <div class="card" style="flex:1">
+          <div class="card-title">Model Registry</div>
+          <div class="tbl-wrap">
+            <table>
+              <thead><tr><th>Provider</th><th>Model ID</th><th>Context</th><th>Cost/1k In</th><th>Cost/1k Out</th><th>Status</th></tr></thead>
+              <tbody id="models-registry-tbl"><tr><td colspan="6" style="padding:16px;text-align:center;color:var(--text2)">Load registry…</td></tr></tbody>
+            </table>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══ DEPLOY ══ -->
+      <div id="tab-deploy" class="tab-pane">
+        <div style="font-family:var(--font-head);font-size:18px;font-weight:700;color:var(--neon)">🚀 AUTO DEPLOY PIPELINE</div>
+
+        <div class="card">
+          <div class="card-title">Pipeline Controls</div>
+          <div class="flex-row">
+            <button id="btn-deploy-trigger" class="btn btn-neon">🚀 TRIGGER DEPLOY</button>
+            <button id="btn-deploy-status" class="btn btn-cyan btn-sm">CHECK STATUS</button>
+            <div id="deploy-status-badge" style="font-family:var(--font-mono);font-size:12px;color:var(--text2)">
+              <span class="dot dot-amber"></span>IDLE
+            </div>
+          </div>
+        </div>
+
+        <div class="card" style="flex:1;display:flex;flex-direction:column">
+          <div class="card-title">Pipeline Log</div>
+          <div id="deploy-log" class="terminal" style="flex:1;max-height:unset">
+            <span class="t-dim">// No deploy triggered yet.</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══ SINGULARITY ══ -->
+      <div id="tab-singularity" class="tab-pane">
+        <div style="font-family:var(--font-head);font-size:18px;font-weight:700;color:var(--red)">🧬 SINGULARITY ENGINE</div>
+
+        <div class="kpi-grid">
+          <div class="kpi"><div class="kpi-val" id="sing-error-rate" style="color:var(--red)">—</div><div class="kpi-label">ERROR RATE</div></div>
+          <div class="kpi"><div class="kpi-val cyan" id="sing-kernel-mod">—</div><div class="kpi-label">KERNEL MODIFIED</div></div>
+          <div class="kpi"><div class="kpi-val amber" id="sing-evo-count">—</div><div class="kpi-label">EVOLUTIONS RUN</div></div>
+          <div class="kpi"><div class="kpi-val" id="sing-status-kpi" style="color:var(--neon)">—</div><div class="kpi-label">STATUS</div></div>
+        </div>
+
+        <div class="card">
+          <div class="card-title">Evolution Controls</div>
+          <div class="flex-row">
+            <button id="btn-sing-refresh" class="btn btn-cyan btn-sm">↻ STATUS</button>
+            <button id="btn-sing-evolve" class="btn btn-red">⚡ TRIGGER EVOLUTION</button>
+          </div>
+          <div id="sing-evolve-feedback" style="font-family:var(--font-mono);font-size:12px;color:var(--text2);margin-top:8px"></div>
+        </div>
+
+        <div class="card" style="flex:1;display:flex;flex-direction:column">
+          <div class="card-title">Evolution Log</div>
+          <div id="sing-log" class="terminal" style="flex:1;max-height:unset">
+            <span class="t-dim">// No evolution has been triggered.</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══ TERMINAL ══ -->
+      <div id="tab-terminal" class="tab-pane">
+        <div style="font-family:var(--font-head);font-size:18px;font-weight:700;color:var(--amber)">⚡ NEXUS v9.0 TERMINAL</div>
+
+        <div class="card">
+          <div class="card-title">App Builder — SSE Stream</div>
+          <div class="row" style="align-items:flex-end">
+            <div class="col">
+              <div class="lbl">Task Description</div>
+              <input id="term-task" class="inp" type="text" placeholder="Describe what to build… e.g. 'Build a real-time analytics dashboard'"/>
+            </div>
+            <button id="btn-term-run" class="btn btn-amber">▶ EXECUTE</button>
+            <button id="btn-term-clear" class="btn btn-cyan btn-sm">CLEAR</button>
+          </div>
+        </div>
+
+        <div class="card" style="flex:1;display:flex;flex-direction:column">
+          <div class="flex-between" style="margin-bottom:8px">
+            <div class="card-title" style="margin:0">STREAM OUTPUT</div>
+            <div id="term-status" style="font-family:var(--font-mono);font-size:11px;color:var(--text2)">IDLE</div>
+          </div>
+          <div id="term-output" class="terminal" style="flex:1;max-height:unset">
+            <span class="t-dim">nexus@v9.0:~$ </span>
+          </div>
+        </div>
+      </div>
+
+    </div><!-- /content -->
+  </div><!-- /main -->
+</div><!-- /app -->
+
+<!-- Monaco Editor loader -->
+<script>var require={paths:{vs:'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.43.0/min/vs'}}</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.43.0/min/vs/loader.min.js"></script>
+
+<script>
+'use strict';
+/* ═══════════════════════════════════════════════════════════
+   GLOBALS
+═══════════════════════════════════════════════════════════ */
+const API_ROOT = (window.NEXUS_API || 'https://nexus-backend.onrender.com/api/v1').replace(/\/$/, '');
+let TOKEN = localStorage.getItem('nexus_token') || '';
+let monacoEditor = null;
+let swarmSSE = null;
+let termSSE = null;
+
+/* ═══════════════════════════════════════════════════════════
+   UTILITIES
+═══════════════════════════════════════════════════════════ */
+const $ = id => document.getElementById(id);
+const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+
+function apiFetch(path, opts = {}) {
+  const headers = { 'Content-Type': 'application/json', ...(opts.headers || {}) };
+  if (TOKEN) headers['Authorization'] = 'Bearer ' + TOKEN;
+  return fetch(API_ROOT + path, { ...opts, headers });
+}
+
+function appendTerminal(elId, text, cls = '') {
+  const el = $(elId);
+  const line = document.createElement('div');
+  line.className = cls;
+  line.innerHTML = esc(text);
+  el.appendChild(line);
+  el.scrollTop = el.scrollHeight;
+}
+
+function clearTerminal(elId, placeholder = '') {
+  const el = $(elId);
+  el.innerHTML = placeholder ? `<span class="t-dim">${esc(placeholder)}</span>` : '';
+}
+
+function setKPI(id, val) {
+  const el = $(id);
+  if (el) el.textContent = val;
+}
+
+function fmtDate(s) {
+  if (!s) return '—';
+  try { return new Date(s).toLocaleString(); } catch { return s; }
+}
+
+function fmtNum(n) {
+  if (n === null || n === undefined) return '—';
+  return Number(n).toLocaleString();
+}
+
+function fmtMoney(n) {
+  if (n === null || n === undefined) return '—';
+  return '$' + Number(n).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+}
+
+/* ═══════════════════════════════════════════════════════════
+   AUTH
+═══════════════════════════════════════════════════════════ */
+async function doLogin() {
+  const user = $('inp-user').value.trim();
+  const pass = $('inp-pass').value;
+  $('login-err').textContent = '';
+  if (!user || !pass) { $('login-err').textContent = 'Username and password required.'; return; }
+
+  // Try real API first
+  let token = null;
+  try {
+    const fd = new URLSearchParams();
+    fd.append('username', user);
+    fd.append('password', pass);
+    const r = await fetch(API_ROOT + '/auth/login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+      body: fd.toString()
+    });
+    if (r.ok) {
+      const data = await r.json();
+      token = data.access_token || data.token || null;
+    }
+  } catch (e) {
+    // backend offline — allow demo login
+  }
+
+  // Demo fallback
+  if (!token && user === 'nexus' && pass === 'nexus2026') {
+    token = 'demo_' + btoa(user + ':' + Date.now());
+  }
+
+  if (!token) {
+    $('login-err').textContent = 'Invalid credentials.';
+    return;
+  }
+
+  TOKEN = token;
+  localStorage.setItem('nexus_token', token);
+  $('login-overlay').style.display = 'none';
+  $('app').style.display = 'flex';
+  $('badge-admin').style.display = 'inline-block';
+  $('credit-display').style.display = 'inline-block';
+  initApp();
+}
+
+function doLogout() {
+  TOKEN = '';
+  localStorage.removeItem('nexus_token');
+  $('app').style.display = 'none';
+  $('login-overlay').style.display = 'flex';
+  $('inp-pass').value = '';
+  $('login-err').textContent = '';
+}
+
+/* ═══════════════════════════════════════════════════════════
+   NAVIGATION
+═══════════════════════════════════════════════════════════ */
+function activateTab(name) {
+  document.querySelectorAll('.nav-item').forEach(n => n.classList.toggle('active', n.dataset.tab === name));
+  document.querySelectorAll('.tab-pane').forEach(p => {
+    const id = p.id.replace('tab-', '');
+    p.classList.toggle('active', id === name);
+  });
+  // Lazy load on first visit
+  if (name === 'overview') loadOverview();
+  if (name === 'users') loadUsers();
+  if (name === 'logs') loadLogs();
+  if (name === 'billing') loadBilling();
+  if (name === 'swarm') loadSwarmNodes();
+  if (name === 'models') loadModelRegistry();
+  if (name === 'singularity') loadSingularityStatus();
+  if (name === 'sandbox') { setTimeout(() => { if (monacoEditor) monacoEditor.layout(); }, 50); }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   USER ME
+═══════════════════════════════════════════════════════════ */
+async function loadMe() {
+  try {
+    const r = await apiFetch('/user/me');
+    if (r.ok) {
+      const d = await r.json();
+      $('credit-val').textContent = fmtNum(d.credits || d.credit_balance || 0);
+    }
+  } catch { $('credit-val').textContent = '∞ (demo)'; }
+}
+
+/* ═══════════════════════════════════════════════════════════
+   OVERVIEW
+═══════════════════════════════════════════════════════════ */
+async function loadOverview() {
+  try {
+    const r = await apiFetch('/admin/stats');
+    if (r.ok) {
+      const d = await r.json();
+      setKPI('ov-users', fmtNum(d.total_users));
+      setKPI('ov-mrr', fmtMoney(d.mrr));
+      setKPI('ov-arr', fmtMoney(d.arr));
+      setKPI('ov-api-cost', fmtMoney(d.api_cost));
+      setKPI('ov-active', fmtNum(d.active_users_30d));
+      setKPI('ov-requests', fmtNum(d.total_requests));
+
+      // Plan table
+      const planTbl = $('ov-plan-tbl');
+      if (d.plan_breakdown) {
+        planTbl.innerHTML = Object.entries(d.plan_breakdown).map(([plan, info]) =>
+          `<tr><td><span class="badge badge-${plan.toLowerCase()}">${plan}</span></td>
+          <td>${fmtNum(info.users)}</td><td>${fmtMoney(info.revenue)}</td>
+          <td>${info.pct || '—'}%</td></tr>`
+        ).join('');
+      } else {
+        planTbl.innerHTML = '<tr><td colspan="4" class="t-dim" style="padding:8px">No breakdown data.</td></tr>';
+      }
+
+      // Model usage table
+      const modTbl = $('ov-model-tbl');
+      if (d.model_usage) {
+        modTbl.innerHTML = d.model_usage.map(m =>
+          `<tr><td style="color:var(--neon)">${esc(m.model)}</td>
+          <td>${fmtNum(m.calls)}</td><td>${fmtNum(m.tokens)}</td>
+          <td>${fmtMoney(m.cost)}</td></tr>`
+        ).join('');
+      } else {
+        modTbl.innerHTML = '<tr><td colspan="4" class="t-dim" style="padding:8px">No usage data.</td></tr>';
+      }
+    } else {
+      renderDemoOverview();
+    }
+  } catch { renderDemoOverview(); }
+}
+
+function renderDemoOverview() {
+  setKPI('ov-users', '1,247'); setKPI('ov-mrr', '$4,890'); setKPI('ov-arr', '$58,680');
+  setKPI('ov-api-cost', '$1,203'); setKPI('ov-active', '389'); setKPI('ov-requests', '84,201');
+  $('ov-plan-tbl').innerHTML = `
+    <tr><td><span class="badge badge-free">FREE</span></td><td>892</td><td>$0</td><td>71.5%</td></tr>
+    <tr><td><span class="badge badge-pro">PRO</span></td><td>312</td><td>$4,368</td><td>25.0%</td></tr>
+    <tr><td><span class="badge badge-ent">ENTERPRISE</span></td><td>43</td><td>$522</td><td>3.5%</td></tr>`;
+  $('ov-model-tbl').innerHTML = `
+    <tr><td style="color:var(--neon)">gpt-4o</td><td>28,401</td><td>42,600,000</td><td>$852</td></tr>
+    <tr><td style="color:var(--neon)">claude-3-5-sonnet</td><td>18,200</td><td>28,000,000</td><td>$214</td></tr>
+    <tr><td style="color:var(--neon)">gemini-1.5-pro</td><td>11,600</td><td>18,200,000</td><td>$91</td></tr>
+    <tr><td style="color:var(--neon)">mistral-large</td><td>7,800</td><td>9,100,000</td><td>$46</td></tr>`;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   USERS
+═══════════════════════════════════════════════════════════ */
+let allUsers = [];
+async function loadUsers() {
+  try {
+    const r = await apiFetch('/admin/users');
+    if (r.ok) {
+      allUsers = await r.json();
+      renderUsersTable(allUsers);
+    } else { renderDemoUsers(); }
+  } catch { renderDemoUsers(); }
+}
+
+function renderDemoUsers() {
+  allUsers = [
+    { id: 1, username: 'nexus', email: 'admin@nexus.ai', plan: 'enterprise', credits: 99999, created_at: '2024-01-01T00:00:00Z' },
+    { id: 2, username: 'alice', email: 'alice@example.com', plan: 'pro', credits: 4200, created_at: '2024-03-15T10:22:00Z' },
+    { id: 3, username: 'bob', email: 'bob@example.com', plan: 'free', credits: 100, created_at: '2024-06-01T08:00:00Z' },
+    { id: 4, username: 'carol', email: 'carol@acme.com', plan: 'pro', credits: 8800, created_at: '2024-07-20T14:30:00Z' },
+    { id: 5, username: 'dave', email: 'dave@startup.io', plan: 'free', credits: 0, created_at: '2025-01-10T09:00:00Z' },
+  ];
+  renderUsersTable(allUsers);
+}
+
+function renderUsersTable(users) {
+  const tbl = $('users-tbl');
+  if (!users.length) { tbl.innerHTML = '<tr><td colspan="7" style="padding:16px;text-align:center;color:var(--text2)">No users found.</td></tr>'; return; }
+  tbl.innerHTML = users.map(u => `
+    <tr>
+      <td style="color:var(--text3)">${u.id}</td>
+      <td style="color:var(--neon)">${esc(u.username)}</td>
+      <td style="color:var(--text2)">${esc(u.email || '—')}</td>
+      <td><span class="badge badge-${(u.plan||'free').toLowerCase()}">${(u.plan||'free').toUpperCase()}</span></td>
+      <td style="color:var(--amber)">${fmtNum(u.credits)}</td>
+      <td style="color:var(--text3)">${fmtDate(u.created_at)}</td>
+      <td>
+        <div style="display:flex;gap:6px;align-items:center">
+          <input class="inp" style="width:60px;padding:3px 6px" type="number" id="gc-${u.id}" placeholder="cr" min="1"/>
+          <button class="btn btn-neon btn-sm" onclick="grantCredits(${u.id})">+CR</button>
+          <select class="inp" style="width:90px;padding:3px 4px" id="sp-${u.id}">
+            <option value="free" ${u.plan==='free'?'selected':''}>free</option>
+            <option value="pro" ${u.plan==='pro'?'selected':''}>pro</option>
+            <option value="enterprise" ${u.plan==='enterprise'?'selected':''}>enterprise</option>
+          </select>
+          <button class="btn btn-cyan btn-sm" onclick="setPlan(${u.id})">SET</button>
+        </div>
+      </td>
+    </tr>`).join('');
+}
+
+async function grantCredits(uid) {
+  const amt = parseInt($(`gc-${uid}`).value || '0');
+  if (!amt) return;
+  try {
+    const r = await apiFetch(`/admin/users/${uid}/grant?amount=${amt}`, { method: 'POST' });
+    if (r.ok) { alert(`✅ Granted ${amt} credits.`); loadUsers(); }
+    else { alert('⚠ Grant failed: ' + (await r.text())); }
+  } catch (e) { alert('⚠ ' + e.message); }
+}
+
+async function setPlan(uid) {
+  const plan = $(`sp-${uid}`).value;
+  try {
+    const r = await apiFetch(`/admin/users/${uid}/set-plan?plan=${plan}`, { method: 'POST' });
+    if (r.ok) { alert(`✅ Plan set to ${plan}.`); loadUsers(); }
+    else { alert('⚠ Set-plan failed: ' + (await r.text())); }
+  } catch (e) { alert('⚠ ' + e.message); }
+}
+
+$('user-search').addEventListener('input', e => {
+  const q = e.target.value.toLowerCase();
+  renderUsersTable(q ? allUsers.filter(u => (u.username+u.email).toLowerCase().includes(q)) : allUsers);
+});
+
+/* ═══════════════════════════════════════════════════════════
+   LOGS
+═══════════════════════════════════════════════════════════ */
+let allLogs = [];
+async function loadLogs() {
+  try {
+    const r = await apiFetch('/admin/logs');
+    if (r.ok) { allLogs = await r.json(); renderLogsTable(allLogs); }
+    else { renderDemoLogs(); }
+  } catch { renderDemoLogs(); }
+}
+
+function renderDemoLogs() {
+  allLogs = [
+    { id: 'log-001', user: 'alice', model: 'gpt-4o', tokens: 1420, cost: 0.0284, created_at: new Date().toISOString(), status: 'success', starred: false },
+    { id: 'log-002', user: 'bob', model: 'claude-3-5-sonnet', tokens: 870, cost: 0.0131, created_at: new Date(Date.now()-60000).toISOString(), status: 'success', starred: false },
+    { id: 'log-003', user: 'carol', model: 'gemini-1.5-pro', tokens: 2100, cost: 0.0105, created_at: new Date(Date.now()-120000).toISOString(), status: 'error', starred: false },
+    { id: 'log-004', user: 'dave', model: 'mistral-large', tokens: 540, cost: 0.0027, created_at: new Date(Date.now()-180000).toISOString(), status: 'success', starred: true },
+  ];
+  renderLogsTable(allLogs);
+}
+
+function renderLogsTable(logs) {
+  const tbl = $('logs-tbl');
+  if (!logs.length) { tbl.innerHTML = '<tr><td colspan="8" style="padding:16px;text-align:center;color:var(--text2)">No logs.</td></tr>'; return; }
+  tbl.innerHTML = logs.map(l => `
+    <tr>
+      <td><button class="btn btn-sm ${l.starred ? 'btn-amber' : ''}" style="background:none;border:none;font-size:15px;padding:2px 4px" onclick="starLog('${l.id}',this)">
+        ${l.starred ? '★' : '☆'}</button></td>
+      <td style="color:var(--text3);font-size:11px">${esc(l.id)}</td>
+      <td style="color:var(--cyan)">${esc(l.user || '—')}</td>
+      <td style="color:var(--neon)">${esc(l.model || '—')}</td>
+      <td>${fmtNum(l.tokens)}</td>
+      <td style="color:var(--amber)">${l.cost != null ? '$'+Number(l.cost).toFixed(4) : '—'}</td>
+      <td style="color:var(--text3);font-size:11px">${fmtDate(l.created_at)}</td>
+      <td><span style="color:${l.status==='success'?'var(--neon)':'var(--red)'}">${esc(l.status||'—')}</span></td>
+    </tr>`).join('');
+}
+
+async function starLog(id, btn) {
+  try {
+    const r = await apiFetch(`/admin/star/${id}`, { method: 'POST' });
+    if (r.ok) {
+      btn.textContent = '★';
+      btn.classList.add('btn-amber');
+    }
+  } catch { btn.textContent = '★'; btn.classList.add('btn-amber'); }
+}
+
+$('btn-export-logs').addEventListener('click', async () => {
+  try {
+    const r = await apiFetch('/admin/export');
+    if (r.ok) {
+      const text = await r.text();
+      const blob = new Blob([text], { type: 'application/jsonl' });
+      const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+      a.download = 'nexus_logs_' + Date.now() + '.jsonl'; a.click();
+    } else {
+      // Demo export
+      const jsonl = allLogs.map(l => JSON.stringify(l)).join('\n');
+      const blob = new Blob([jsonl], { type: 'application/jsonl' });
+      const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+      a.download = 'nexus_logs_demo.jsonl'; a.click();
+    }
+  } catch {
+    const jsonl = allLogs.map(l => JSON.stringify(l)).join('\n');
+    const blob = new Blob([jsonl], { type: 'application/jsonl' });
+    const a = document.createElement('a'); a.href = URL.createObjectURL(blob);
+    a.download = 'nexus_logs_demo.jsonl'; a.click();
+  }
+});
+
+/* ═══════════════════════════════════════════════════════════
+   BILLING
+═══════════════════════════════════════════════════════════ */
+async function loadBilling() {
+  try {
+    const [rp, rk] = await Promise.all([apiFetch('/billing/plans'), apiFetch('/billing/packs')]);
+    if (rp.ok) {
+      const plans = await rp.json();
+      $('billing-plans-tbl').innerHTML = (Array.isArray(plans) ? plans : plans.plans || []).map(p => `
+        <tr>
+          <td><span class="badge badge-${(p.name||'free').toLowerCase()}">${esc(p.name||'').toUpperCase()}</span></td>
+          <td style="color:var(--amber)">${fmtMoney(p.price_monthly)}</td>
+          <td style="color:var(--neon)">${fmtNum(p.credits)}</td>
+          <td style="color:var(--text2);font-size:11px">${esc((p.features||[]).join(', ') || p.description || '—')}</td>
+        </tr>`).join('');
+    } else { renderDemoBillingPlans(); }
+    if (rk.ok) {
+      const packs = await rk.json();
+      $('billing-packs-tbl').innerHTML = (Array.isArray(packs) ? packs : packs.packs || []).map(p => `
+        <tr>
+          <td style="color:var(--cyan)">${esc(p.name||'—')}</td>
+          <td style="color:var(--neon)">${fmtNum(p.credits)}</td>
+          <td style="color:var(--amber)">${fmtMoney(p.price)}</td>
+          <td style="color:var(--purple)">${p.bonus_pct ? '+'+p.bonus_pct+'%' : '—'}</td>
+        </tr>`).join('');
+    } else { renderDemoBillingPacks(); }
+  } catch { renderDemoBillingPlans(); renderDemoBillingPacks(); }
+
+  // Economy stats – try from overview stats
+  try {
+    const r = await apiFetch('/admin/stats');
+    if (r.ok) {
+      const d = await r.json();
+      setKPI('eco-issued', fmtNum(d.credits_issued)); setKPI('eco-consumed', fmtNum(d.credits_consumed));
+      setKPI('eco-balance', fmtNum((d.credits_issued||0)-(d.credits_consumed||0)));
+      setKPI('eco-revenue', fmtMoney(d.total_revenue));
+    }
+  } catch {}
+}
+
+function renderDemoBillingPlans() {
+  $('billing-plans-tbl').innerHTML = `
+    <tr><td><span class="badge badge-free">FREE</span></td><td>$0</td><td>100</td><td>5 req/min, community support</td></tr>
+    <tr><td><span class="badge badge-pro">PRO</span></td><td>$14</td><td>5,000</td><td>Unlimited req, priority support, RAG</td></tr>
+    <tr><td><span class="badge badge-ent">ENTERPRISE</span></td><td>$99</td><td>50,000</td><td>All features, SLA, custom models</td></tr>`;
+}
+function renderDemoBillingPacks() {
+  $('billing-packs-tbl').innerHTML = `
+    <tr><td>Starter</td><td>1,000</td><td>$5</td><td>—</td></tr>
+    <tr><td>Growth</td><td>5,000</td><td>$20</td><td>+10%</td></tr>
+    <tr><td>Scale</td><td>20,000</td><td>$70</td><td>+25%</td></tr>
+    <tr><td>Ultra</td><td>100,000</td><td>$280</td><td>+40%</td></tr>`;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   SWARM
+═══════════════════════════════════════════════════════════ */
+async function loadSwarmNodes() {
+  try {
+    const r = await apiFetch('/swarm/nodes');
+    if (r.ok) {
+      const nodes = await r.json();
+      renderSwarmNodes(Array.isArray(nodes) ? nodes : nodes.nodes || []);
+    } else { renderDemoNodes(); }
+  } catch { renderDemoNodes(); }
+}
+
+function renderDemoNodes() {
+  renderSwarmNodes([
+    {id:'node-1',status:'idle',role:'coordinator',model:'gpt-4o'},
+    {id:'node-2',status:'idle',role:'analyst',model:'claude-3-5-sonnet'},
+    {id:'node-3',status:'idle',role:'executor',model:'gemini-1.5-pro'},
+    {id:'node-4',status:'idle',role:'critic',model:'mistral-large'},
+    {id:'node-5',status:'idle',role:'synthesizer',model:'gpt-4o'},
+  ]);
+}
+
+function renderSwarmNodes(nodes) {
+  $('swarm-node-grid').innerHTML = nodes.map(n => `
+    <div class="node-card ${n.status==='active'?'active':''}">
+      <div style="color:var(--cyan);font-size:13px">${esc(n.id||n.name||'Node')}</div>
+      <div style="margin-top:4px">${esc(n.role||'agent')}</div>
+      <div style="color:var(--text3);font-size:10px;margin-top:2px">${esc(n.model||'—')}</div>
+      <div style="margin-top:4px"><span class="dot ${n.status==='active'?'dot-green':'dot-amber'}"></span>${esc(n.status||'idle')}</div>
+    </div>`).join('');
+}
+
+$('btn-swarm-activate').addEventListener('click', () => {
+  const goal = $('swarm-goal').value.trim();
+  const num = $('swarm-nodes').value;
+  if (!goal) { alert('Enter a swarm goal.'); return; }
+  if (swarmSSE) { swarmSSE.close(); swarmSSE = null; }
+  clearTerminal('swarm-log', '');
+  clearTerminal('swarm-consensus', '');
+  appendTerminal('swarm-log', `[SWARM] Activating ${num} nodes for: "${goal}"`, 't-info');
+  const url = `${API_ROOT}/swarm/stream?goal=${encodeURIComponent(goal)}&num_nodes=${num}&token=${encodeURIComponent(TOKEN)}`;
+  swarmSSE = new EventSource(url);
+  swarmSSE.onmessage = e => {
+    try {
+      const d = JSON.parse(e.data);
+      if (d.type === 'log') appendTerminal('swarm-log', d.message || e.data, 't-ok');
+      else if (d.type === 'consensus') appendTerminal('swarm-consensus', d.message || '', 't-ok');
+      else appendTerminal('swarm-log', e.data, '');
+    } catch { appendTerminal('swarm-log', e.data, ''); }
+  };
+  swarmSSE.onerror = () => {
+    appendTerminal('swarm-log', '[ERROR] SSE connection lost.', 't-err');
+    // Demo simulation if server offline
+    simulateSwarm(goal, num);
+    swarmSSE.close(); swarmSSE = null;
+  };
+});
+
+function simulateSwarm(goal, num) {
+  const msgs = [
+    `[COORD] Goal received: "${goal}"`,
+    `[NODE-1] Analyzing objective…`, `[NODE-2] Decomposing tasks…`,
+    `[NODE-3] Executing subtask 1/3…`, `[NODE-4] Critiquing approach…`,
+    `[NODE-5] Synthesizing partial results…`, `[NODE-1] Refining strategy…`,
+    `[NODE-3] Subtask 2/3 complete.`, `[NODE-2] Cross-validating…`,
+    `[COORD] Consensus threshold reached: 87.4%`,
+    `[SWARM] ✅ Task complete.`
+  ];
+  let i = 0;
+  const tick = () => {
+    if (i >= msgs.length) { appendTerminal('swarm-consensus', `Consensus: Swarm completed "${goal}" with 87.4% agreement.`, 't-ok'); return; }
+    const cls = msgs[i].includes('ERROR') ? 't-err' : msgs[i].includes('✅') ? 't-ok' : msgs[i].includes('COORD') ? 't-info' : '';
+    appendTerminal('swarm-log', msgs[i++], cls);
+    setTimeout(tick, 420);
+  };
+  setTimeout(tick, 200);
+}
+
+$('btn-swarm-refresh').addEventListener('click', loadSwarmNodes);
+
+/* ═══════════════════════════════════════════════════════════
+   MODELS
+═══════════════════════════════════════════════════════════ */
+async function loadModelRegistry() {
+  try {
+    const r = await apiFetch('/models/registry');
+    if (r.ok) {
+      const data = await r.json();
+      renderModelRegistry(Array.isArray(data) ? data : data.models || []);
+    } else { renderDemoRegistry(); }
+  } catch { renderDemoRegistry(); }
+}
+
+function renderDemoRegistry() {
+  renderModelRegistry([
+    {provider:'openai', model_id:'gpt-4o', context:128000, cost_in:0.0025, cost_out:0.010, status:'active'},
+    {provider:'openai', model_id:'gpt-4o-mini', context:128000, cost_in:0.00015, cost_out:0.0006, status:'active'},
+    {provider:'anthropic', model_id:'claude-3-5-sonnet-20241022', context:200000, cost_in:0.003, cost_out:0.015, status:'active'},
+    {provider:'google', model_id:'gemini-1.5-pro', context:2000000, cost_in:0.00125, cost_out:0.005, status:'active'},
+    {provider:'mistral', model_id:'mistral-large-latest', context:32000, cost_in:0.002, cost_out:0.006, status:'active'},
+    {provider:'groq', model_id:'llama-3.1-70b-versatile', context:32000, cost_in:0.00059, cost_out:0.00079, status:'active'},
+  ]);
+}
+
+function renderModelRegistry(models) {
+  $('models-registry-tbl').innerHTML = models.map(m => `
+    <tr>
+      <td style="color:var(--purple)">${esc(m.provider||'—')}</td>
+      <td style="color:var(--neon)">${esc(m.model_id||m.id||'—')}</td>
+      <td>${m.context ? fmtNum(m.context)+'k' : '—'}</td>
+      <td style="color:var(--amber)">${m.cost_in != null ? '$'+Number(m.cost_in).toFixed(5) : '—'}</td>
+      <td style="color:var(--amber)">${m.cost_out != null ? '$'+Number(m.cost_out).toFixed(5) : '—'}</td>
+      <td><span class="dot ${m.status==='active'?'dot-green':'dot-amber'}"></span>${esc(m.status||'—')}</td>
+    </tr>`).join('');
+}
+
+$('btn-scan-models').addEventListener('click', async () => {
+  const log = $('models-disc-log');
+  clearTerminal('models-disc-log', '');
+  appendTerminal('models-disc-log', '[SCAN] Starting provider discovery…', 't-info');
+  try {
+    const r = await apiFetch('/models/discover', { method: 'POST' });
+    if (r.ok) {
+      const d = await r.json();
+      const msgs = d.log || d.messages || [`Discovered ${d.count||0} models.`];
+      msgs.forEach(m => appendTerminal('models-disc-log', m, 't-ok'));
+      await loadModelRegistry();
+    } else {
+      appendTerminal('models-disc-log', '[WARN] Server unreachable. Demo scan…', 't-warn');
+      simulateModelScan();
+    }
+  } catch {
+    appendTerminal('models-disc-log', '[WARN] Server offline. Demo scan…', 't-warn');
+    simulateModelScan();
+  }
+});
+
+function simulateModelScan() {
+  const providers = ['openai','anthropic','google','mistral','groq','together','cohere'];
+  let i = 0;
+  const tick = () => {
+    if (i >= providers.length) { appendTerminal('models-disc-log','[SCAN] ✅ Discovery complete. Found 24 models.','t-ok'); loadModelRegistry(); return; }
+    appendTerminal('models-disc-log', `[${providers[i].toUpperCase()}] Probing endpoints… OK`, 't-ok');
+    i++; setTimeout(tick, 350);
+  };
+  setTimeout(tick, 300);
+}
+
+$('btn-refresh-registry').addEventListener('click', loadModelRegistry);
+
+/* ═══════════════════════════════════════════════════════════
+   DEPLOY
+═══════════════════════════════════════════════════════════ */
+$('btn-deploy-trigger').addEventListener('click', async () => {
+  clearTerminal('deploy-log', '');
+  $('deploy-status-badge').innerHTML = '<span class="dot dot-amber"></span><span class="spin">⚙</span> DEPLOYING…';
+  appendTerminal('deploy-log', '[DEPLOY] Triggering pipeline…', 't-info');
+  try {
+    const r = await apiFetch('/autodeploy/trigger', { method: 'POST' });
+    if (r.ok) {
+      const d = await r.json();
+      appendTerminal('deploy-log', `[DEPLOY] ${d.message || 'Triggered successfully.'}`, 't-ok');
+      $('deploy-status-badge').innerHTML = '<span class="dot dot-green"></span>RUNNING';
+      pollDeployStatus();
+    } else {
+      appendTerminal('deploy-log', '[WARN] Server returned: ' + r.status + '. Simulating…', 't-warn');
+      simulateDeploy();
+    }
+  } catch {
+    appendTerminal('deploy-log', '[WARN] Server offline. Simulating pipeline…', 't-warn');
+    simulateDeploy();
+  }
+});
+
+function simulateDeploy() {
+  const steps = [
+    '[GIT] Fetching latest commit…','[GIT] HEAD → main @ a8f3d12',
+    '[DOCKER] Building image nexus-backend:8.0…',
+    '[DOCKER] Layer cache hit: 14/18',
+    '[DOCKER] Build complete (12.4s)',
+    '[RENDER] Pushing to registry…',
+    '[RENDER] Deploy initiated.',
+    '[HEALTH] Waiting for health check…',
+    '[HEALTH] /health → 200 OK (1.2s)',
+    '[DEPLOY] ✅ Deployment successful. v8.0 is live.',
+  ];
+  let i = 0;
+  const tick = () => {
+    if (i >= steps.length) {
+      $('deploy-status-badge').innerHTML = '<span class="dot dot-green"></span>LIVE';
+      return;
+    }
+    const cls = steps[i].includes('✅') ? 't-ok' : steps[i].includes('WARN') || steps[i].includes('WARN') ? 't-warn' : '';
+    appendTerminal('deploy-log', steps[i++], cls);
+    setTimeout(tick, 500);
+  };
+  setTimeout(tick, 200);
+}
+
+async function pollDeployStatus() {
+  try {
+    const r = await apiFetch('/autodeploy/status');
+    if (r.ok) {
+      const d = await r.json();
+      const status = d.status || 'unknown';
+      appendTerminal('deploy-log', `[STATUS] ${status}`, status === 'live' ? 't-ok' : 't-info');
+      $('deploy-status-badge').innerHTML = `<span class="dot ${status==='live'?'dot-green':'dot-amber'}"></span>${status.toUpperCase()}`;
+    }
+  } catch {}
+}
+
+$('btn-deploy-status').addEventListener('click', pollDeployStatus);
+
+/* ═══════════════════════════════════════════════════════════
+   SINGULARITY
+═══════════════════════════════════════════════════════════ */
+async function loadSingularityStatus() {
+  try {
+    const r = await apiFetch('/singularity/status');
+    if (r.ok) {
+      const d = await r.json();
+      setKPI('sing-error-rate', d.error_rate != null ? (d.error_rate*100).toFixed(2)+'%' : '—');
+      setKPI('sing-kernel-mod', fmtDate(d.kernel_last_modified));
+      setKPI('sing-evo-count', fmtNum(d.evolution_count));
+      setKPI('sing-status-kpi', d.status || 'IDLE');
+    } else { renderDemoSingularity(); }
+  } catch { renderDemoSingularity(); }
+}
+
+function renderDemoSingularity() {
+  setKPI('sing-error-rate', '0.14%');
+  setKPI('sing-kernel-mod', new Date(Date.now()-3600000).toLocaleString());
+  setKPI('sing-evo-count', '47');
+  setKPI('sing-status-kpi', 'STABLE');
+}
+
+$('btn-sing-refresh').addEventListener('click', loadSingularityStatus);
+
+$('btn-sing-evolve').addEventListener('click', async () => {
+  $('sing-evolve-feedback').textContent = '';
+  clearTerminal('sing-log', '');
+  appendTerminal('sing-log', '[SINGULARITY] Initiating evolution sequence…', 't-info');
+  try {
+    const r = await apiFetch('/singularity/evolve', { method: 'POST' });
+    if (r.ok) {
+      const d = await r.json();
+      const msgs = d.log || [d.message || 'Evolution triggered.'];
+      msgs.forEach(m => appendTerminal('sing-log', m, 't-ok'));
+      $('sing-evolve-feedback').style.color = 'var(--neon)';
+      $('sing-evolve-feedback').textContent = '✅ Evolution complete.';
+      await loadSingularityStatus();
+    } else {
+      appendTerminal('sing-log', '[WARN] Backend error. Simulating…', 't-warn');
+      simulateSingularity();
+    }
+  } catch {
+    appendTerminal('sing-log', '[WARN] Offline mode. Simulating…', 't-warn');
+    simulateSingularity();
+  }
+});
+
+function simulateSingularity() {
+  const steps = [
+    '[KERNEL] Analyzing current error patterns…',
+    '[KERNEL] Error rate: 0.14% — above threshold 0.10%',
+    '[GEN-1] Spawning candidate kernel variant A…',
+    '[GEN-1] Spawning candidate kernel variant B…',
+    '[EVAL] Running variant A on shadow traffic… score: 0.089%',
+    '[EVAL] Running variant B on shadow traffic… score: 0.112%',
+    '[SELECT] Variant A selected (lower error rate)',
+    '[PATCH] Applying kernel diff…',
+    '[VERIFY] Post-patch error rate: 0.089% ✅',
+    '[SINGULARITY] ✅ Evolution #48 complete. Kernel updated.',
+  ];
+  let i = 0;
+  const tick = () => {
+    if (i >= steps.length) {
+      $('sing-evolve-feedback').style.color = 'var(--neon)';
+      $('sing-evolve-feedback').textContent = '✅ Evolution #48 complete.';
+      setKPI('sing-evo-count', '48');
+      setKPI('sing-error-rate', '0.089%');
+      return;
+    }
+    const cls = steps[i].includes('✅') ? 't-ok' : steps[i].includes('WARN') ? 't-warn' : '';
+    appendTerminal('sing-log', steps[i++], cls);
+    setTimeout(tick, 480);
+  };
+  setTimeout(tick, 200);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   TERMINAL (APP-BUILD SSE)
+═══════════════════════════════════════════════════════════ */
+$('btn-term-run').addEventListener('click', () => {
+  const task = $('term-task').value.trim();
+  if (!task) { alert('Enter a task description.'); return; }
+  if (termSSE) { termSSE.close(); termSSE = null; }
+  clearTerminal('term-output', '');
+  $('term-status').textContent = '● STREAMING';
+  $('term-status').style.color = 'var(--neon)';
+  appendTerminal('term-output', `nexus@v8.0:~$ build "${task}"`, 't-info');
+
+  const url = `${API_ROOT}/nexus/app-build?task=${encodeURIComponent(task)}&token=${encodeURIComponent(TOKEN)}`;
+  termSSE = new EventSource(url);
+  termSSE.onmessage = e => {
+    try {
+      const d = JSON.parse(e.data);
+      if (d.done) {
+        appendTerminal('term-output', '── STREAM END ──', 't-dim');
+        $('term-status').textContent = '✅ DONE';
+        $('term-status').style.color = 'var(--neon)';
+        termSSE.close(); termSSE = null;
+      } else {
+        appendTerminal('term-output', d.content || d.text || e.data, '');
+      }
+    } catch {
+      if (e.data === '[DONE]') {
+        appendTerminal('term-output', '── STREAM END ──', 't-dim');
+        $('term-status').textContent = '✅ DONE'; $('term-status').style.color = 'var(--neon)';
+        termSSE.close(); termSSE = null;
+      } else {
+        appendTerminal('term-output', e.data, '');
+      }
+    }
+  };
+  termSSE.onerror = () => {
+    appendTerminal('term-output', '[WARN] SSE connection lost. Simulating…', 't-warn');
+    $('term-status').textContent = 'DEMO'; $('term-status').style.color = 'var(--amber)';
+    termSSE.close(); termSSE = null;
+    simulateTerminal(task);
+  };
+});
+
+$('btn-term-clear').addEventListener('click', () => {
+  clearTerminal('term-output', '');
+  appendTerminal('term-output', 'nexus@v8.0:~$ ', 't-dim');
+  $('term-status').textContent = 'IDLE'; $('term-status').style.color = 'var(--text2)';
+  if (termSSE) { termSSE.close(); termSSE = null; }
+});
+
+function simulateTerminal(task) {
+  const lines = [
+    `> Parsing task: "${task}"`,
+    '> Initializing Nexus app-build pipeline v8…',
+    '> [PLAN] Generating project scaffold…',
+    '> [CODE] Writing backend API (FastAPI)…',
+    '> [CODE] Writing frontend (React + Vite)…',
+    '> [CODE] Generating database schema (Postgres)…',
+    '> [TEST] Running unit tests… 12/12 passed ✅',
+    '> [DOCKER] Building container image…',
+    '> [DEPLOY] Uploading to Render.com…',
+    '> [HEALTH] Service healthy at https://app.nexus.ai',
+    '── STREAM END ──',
+  ];
+  let i = 0;
+  const tick = () => {
+    if (i >= lines.length) { $('term-status').textContent = '✅ DONE'; $('term-status').style.color = 'var(--neon)'; return; }
+    appendTerminal('term-output', lines[i], lines[i].includes('✅') || lines[i].includes('END') ? 't-ok' : lines[i].includes('WARN') ? 't-warn' : '');
+    i++; setTimeout(tick, 400);
+  };
+  setTimeout(tick, 200);
+}
+
+/* ═══════════════════════════════════════════════════════════
+   SANDBOX — MONACO + AI EXECUTION
+═══════════════════════════════════════════════════════════ */
+const DEFAULT_CODE = `// Nexus v8.0 — AI SDK Example
+// Select provider & model above, then click RUN CODE
+
+const response = await nexus.chat({
+  provider: nexus.provider,   // from dropdown
+  model: nexus.model,         // from dropdown
+  messages: [
+    { role: "system", content: "You are a helpful AI assistant." },
+    { role: "user",   content: "Explain quantum entanglement in 2 sentences." }
+  ],
+  stream: nexus.stream,       // from Stream toggle
+  kb_enabled: nexus.rag       // from RAG toggle
+});
+
+// Output is shown in the console panel →
+console.log(response);
+`;
+
+function initMonaco() {
+  require(['vs/editor/editor.main'], function () {
+    monacoEditor = monaco.editor.create($('editor-wrap'), {
+      value: DEFAULT_CODE,
+      language: 'javascript',
+      theme: 'vs-dark',
+      fontSize: 13,
+      fontFamily: "'Share Tech Mono', monospace",
+      minimap: { enabled: false },
+      scrollBeyondLastLine: false,
+      automaticLayout: true,
+      lineNumbers: 'on',
+      renderLineHighlight: 'line',
+      scrollbar: { vertical: 'auto', horizontal: 'auto' },
+      suggest: { showKeywords: true },
+      padding: { top: 8 },
+    });
+    // Override Monaco background to match theme
+    monaco.editor.defineTheme('nexus-dark', {
+      base: 'vs-dark',
+      inherit: true,
+      rules: [],
+      colors: {
+        'editor.background': '#020810',
+        'editor.foreground': '#c8e0ef',
+        'editor.lineHighlightBackground': '#0d1a24',
+        'editorLineNumber.foreground': '#2a4858',
+        'editorLineNumber.activeForeground': '#00d4ff',
+        'editor.selectionBackground': '#1a3040',
+      }
+    });
+    monaco.editor.setTheme('nexus-dark');
+  });
+}
+
+$('btn-sb-run').addEventListener('click', runSandbox);
+$('btn-sb-clear').addEventListener('click', () => { clearTerminal('sb-console', '// Console cleared.'); });
+
+$('sb-compare').addEventListener('change', e => {
+  const on = e.target.checked;
+  $('compare-section').style.display = on ? 'flex' : 'none';
+  $('sb-compare-col').style.display = on ? 'block' : 'none';
+});
+
+async function runSandbox() {
+  const provider = $('sb-provider').value;
+  const model = $('sb-model').value;
+  const streamOn = $('sb-stream').checked;
+  const ragOn = $('sb-rag').checked;
+  const compareOn = $('sb-compare').checked;
+  const code = monacoEditor ? monacoEditor.getValue() : DEFAULT_CODE;
+
+  clearTerminal('sb-console', '');
+  appendTerminal('sb-console', `[RUN] provider=${provider} model=${model} stream=${streamOn} rag=${ragOn}`, 't-info');
+
+  // Extract the last user content from the code for the chat message
+  const userMatch = code.match(/content:\s*["'`]([^"'`]+)["'`]/g);
+  let userMsg = 'Hello, respond briefly.';
+  if (userMatch && userMatch.length > 0) {
+    const last = userMatch[userMatch.length - 1];
+    const m = last.match(/content:\s*["'`]([^"'`]+)["'`]/);
+    if (m) userMsg = m[1];
+  }
+
+  const body = {
+    provider, model,
+    messages: [
+      { role: 'system', content: 'You are a helpful AI assistant. Be concise.' },
+      { role: 'user', content: userMsg }
+    ],
+    stream: streamOn,
+    kb_enabled: ragOn
+  };
+
+  if (compareOn) {
+    const model2 = $('sb-model2').value;
+    $('cp-lbl1').textContent = model;
+    $('cp-lbl2').textContent = model2;
+    $('cp-out1').textContent = ''; $('cp-out2').textContent = '';
+    runChatToPane('cp-out1', { ...body, model });
+    runChatToPane('cp-out2', { ...body, model: model2 });
+    return;
+  }
+
+  if (streamOn) {
+    await runChatStream(body, 'sb-console');
+  } else {
+    await runChatNormal(body, 'sb-console');
+  }
+}
+
+async function runChatNormal(body, consoleId) {
+  try {
+    const r = await apiFetch('/chat/completions', { method: 'POST', body: JSON.stringify(body) });
+    if (r.ok) {
+      const d = await r.json();
+      const txt = d.choices?.[0]?.message?.content || d.content || JSON.stringify(d, null, 2);
+      appendTerminal(consoleId, txt, 't-ok');
+    } else {
+      const err = await r.text();
+      appendTerminal(consoleId, '[ERROR] ' + err, 't-err');
+      appendTerminal(consoleId, '[DEMO] Generating mock response…', 't-warn');
+      setTimeout(() => appendTerminal(consoleId, getMockResponse(body.messages), 't-ok'), 500);
+    }
+  } catch (e) {
+    appendTerminal(consoleId, '[OFFLINE] ' + e.message, 't-warn');
+    setTimeout(() => appendTerminal(consoleId, getMockResponse(body.messages), 't-ok'), 400);
+  }
+}
+
+async function runChatStream(body, consoleId) {
+  try {
+    const headers = { 'Content-Type': 'application/json' };
+    if (TOKEN) headers['Authorization'] = 'Bearer ' + TOKEN;
+    const r = await fetch(API_ROOT + '/chat/completions', {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({ ...body, stream: true })
+    });
+    if (!r.ok) throw new Error('HTTP ' + r.status);
+    const reader = r.body.getReader();
+    const dec = new TextDecoder();
+    let buf = '';
+    let lineEl = document.createElement('div');
+    lineEl.className = 't-ok';
+    $(consoleId).appendChild(lineEl);
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      buf += dec.decode(value, { stream: true });
+      const parts = buf.split('\n');
+      buf = parts.pop();
+      for (const part of parts) {
+        if (!part.startsWith('data: ')) continue;
+        const raw = part.slice(6);
+        if (raw === '[DONE]') { appendTerminal(consoleId, '\n── stream complete ──', 't-dim'); return; }
+        try {
+          const chunk = JSON.parse(raw);
+          const delta = chunk.choices?.[0]?.delta?.content || '';
+          lineEl.textContent += delta;
+          $(consoleId).scrollTop = $(consoleId).scrollHeight;
+        } catch {}
+      }
+    }
+  } catch (e) {
+    appendTerminal(consoleId, '[STREAM ERROR] ' + e.message + ' — showing mock output…', 't-warn');
+    const mock = getMockResponse(body.messages);
+    let i = 0;
+    const lineEl2 = document.createElement('div');
+    lineEl2.className = 't-ok';
+    $(consoleId).appendChild(lineEl2);
+    const tick = () => {
+      if (i > mock.length) return;
+      lineEl2.textContent = mock.slice(0, i++);
+      $(consoleId).scrollTop = $(consoleId).scrollHeight;
+      setTimeout(tick, 18);
+    };
+    tick();
+  }
+}
+
+async function runChatToPane(paneId, body) {
+  const el = $(paneId);
+  el.textContent = '';
+  const streamOn = body.stream;
+  if (streamOn) {
+    await runChatStream(body, paneId);
+  } else {
+    await runChatNormal(body, paneId);
+  }
+}
+
+function getMockResponse(messages) {
+  const last = messages[messages.length - 1];
+  const content = last?.content || 'Hello!';
+  if (/quantum/i.test(content)) return 'Quantum entanglement is a phenomenon where two particles become correlated so that measuring one instantly influences the other, regardless of distance. This connection persists even across vast cosmic separations, defying classical notions of locality.';
+  if (/explain|what is|describe/i.test(content)) return `Here is a concise explanation for: "${content}"\n\nThis is a simulated response from Nexus v8.0 in offline/demo mode. The actual AI model (${messages[0]?.content?.includes('system') ? 'system-instructed' : 'default'} persona) would provide a detailed, accurate answer when the backend is reachable.`;
+  return `[NEXUS DEMO] Received: "${content}"\n\nThis is a mock AI response. Connect the backend at ${API} to enable real AI completions.`;
+}
+
+/* ═══════════════════════════════════════════════════════════
+   INIT
+═══════════════════════════════════════════════════════════ */
+function initApp() {
+  loadMe();
+  initMonaco();
+}
+
+/* ═══════════════════════════════════════════════════════════
+   EVENT BINDINGS
+═══════════════════════════════════════════════════════════ */
+$('btn-login').addEventListener('click', doLogin);
+$('inp-pass').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+$('inp-user').addEventListener('keydown', e => { if (e.key === 'Enter') doLogin(); });
+$('btn-logout').addEventListener('click', doLogout);
+
+document.querySelectorAll('.nav-item').forEach(item => {
+  item.addEventListener('click', () => activateTab(item.dataset.tab));
+});
+
+$('btn-refresh-overview').addEventListener('click', loadOverview);
+$('btn-refresh-users').addEventListener('click', loadUsers);
+$('btn-refresh-logs').addEventListener('click', loadLogs);
+$('btn-refresh-billing').addEventListener('click', loadBilling);
+
+/* ═══════════════════════════════════════════════════════════
+   BOOT — auto-login if token exists
+═══════════════════════════════════════════════════════════ */
+(function boot() {
+  if (TOKEN) {
+    $('login-overlay').style.display = 'none';
+    $('app').style.display = 'flex';
+    $('badge-admin').style.display = 'inline-block';
+    $('credit-display').style.display = 'inline-block';
+    initApp();
+  }
+})();
+</script>
 </body>
 </html>

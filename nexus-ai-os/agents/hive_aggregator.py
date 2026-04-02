@@ -1,60 +1,82 @@
+"""Hive aggregation agent for synthesising multi-model outputs into a consensus."""
 import json
-from typing import List, Dict, Any
+import logging
+from typing import Any, Dict, List, Optional
+
+from core.kernel import NexusKernel
+
+logger = logging.getLogger(__name__)
+
 
 class HiveAggregator:
-    def __init__(self, kernel):
+    """Aggregate and judge hive outputs produced by NexusKernel.hive_poll()."""
+
+    def __init__(self, kernel: NexusKernel):
         self.kernel = kernel
 
-    async def aggregate(self, prompt: str, hive_outputs: List[Dict[str, Any]], provider: str, model: str, api_key: str = None) -> str:
-        """Synthesize multiple model responses into a single 'Hive Consensus' output."""
-        print(f"🐝 Hive Aggregator: Processing {len(hive_outputs)} responses...")
-        
-        # Prepare the synthesis prompt
-        synthesis_prompt = f"""You are the Nexus Hive Aggregator. You have been given multiple responses from different AI models for the following prompt:
-        
-User Prompt: {prompt}
-
----
-RESPONSES:
-"""
-        for i, res in enumerate(hive_outputs):
-            if res['status'] == 'success':
-                synthesis_prompt += f"Model {i+1} ({res['provider']}/{res['model']}):\n{res['content']}\n\n"
-        
-        synthesis_prompt += """---
-        
-Task: 
-1. Identify the consensus across all models (common patterns, shared truths).
-2. Identify any conflicts or unique insights from specific models.
-3. Synthesize the 'Best Version' of the response, combining the most accurate and useful parts of all responses.
-4. Output the final synthesized result only."""
-
+    async def aggregate(
+        self,
+        prompt: str,
+        hive_outputs: List[Dict[str, Any]],
+        provider: str,
+        model: str,
+        api_key: Optional[str] = None,
+    ) -> str:
+        """Synthesize successful hive responses into a single consensus answer."""
+        logger.info("HiveAggregator.aggregate outputs=%d", len(hive_outputs))
+        synthesis_prompt = (
+            "You are the Nexus Hive Aggregator. You have been given multiple responses from different AI models for the following prompt:\n\n"
+            f"User Prompt: {prompt}\n\n---\nRESPONSES:\n"
+        )
+        for index, res in enumerate(hive_outputs, start=1):
+            if res.get("status", "success") == "success":
+                synthesis_prompt += (
+                    f"Model {index} ({res.get('provider')}/{res.get('model', 'unknown')}):\n"
+                    f"{res.get('content', '')}\n\n"
+                )
+        synthesis_prompt += (
+            "---\n\nTask:\n"
+            "1. Identify the consensus across all models (common patterns, shared truths).\n"
+            "2. Identify any conflicts or unique insights from specific models.\n"
+            "3. Synthesize the 'Best Version' of the response, combining the most accurate and useful parts of all responses.\n"
+            "4. Output the final synthesized result only."
+        )
         messages = [{"role": "user", "content": synthesis_prompt}]
-        
-        consensus_output = await self.kernel.chat_async(provider, model, messages, api_key=api_key)
-        print(f"✅ Hive Consensus Synthesized.")
-        return consensus_output
 
-    async def judge_hive(self, prompt: str, consensus: str, provider: str, model: str, api_key: str = None) -> dict:
-        """Have a judge evaluate the Hive's final consensus output."""
-        judge_prompt = f"""You are the Nexus Hive Judge. Evaluate the quality of the final Hive Consensus response for the given user prompt.
-        
-User Prompt: {prompt}
-Hive Consensus Response:
-{consensus}
+        try:
+            consensus_output = await self.kernel.chat_async(provider, model, messages, api_key=api_key)
+            logger.info("HiveAggregator aggregate complete")
+            return consensus_output
+        except Exception as exc:
+            logger.error("HiveAggregator.aggregate failed: %s", exc, exc_info=True)
+            return f"Hive aggregation failed: {exc}"
 
-Output your verdict as a JSON with keys: 'quality_score' (0-10), 'consensus_strength' (LOW/MED/HIGH), and 'feedback' (1 sentence)."""
+    async def judge_hive(
+        self,
+        prompt: str,
+        consensus: str,
+        provider: str,
+        model: str,
+        api_key: Optional[str] = None,
+    ) -> Dict[str, Any]:
+        """Evaluate the final hive consensus and return a structured verdict."""
+        logger.info("HiveAggregator.judge_hive prompt=%s", prompt)
+        judge_prompt = f"""You are the Nexus Hive Judge.
 
+Original Prompt: {prompt}
+Consensus Answer: {consensus}
+
+Evaluate the consensus answer for correctness, completeness, and actionability.
+Return JSON with keys: status, score, feedback."""
         messages = [{"role": "user", "content": judge_prompt}]
-        
+
         try:
             res_content = await self.kernel.chat_async(provider, model, messages, api_key=api_key)
-            if "{" in res_content:
-                res_content = res_content[res_content.find("{"):res_content.rfind("}")+1]
-            
-            review_data = json.loads(res_content)
-            print(f"⚖️ Hive Verdict: Score {review_data.get('quality_score', 'N/A')}/10 - Consensus: {review_data.get('consensus_strength', 'N/A')}")
-            return review_data
-        except Exception as e:
-            print(f"⚠️ Hive Judge Error: {str(e)}")
-            return {"quality_score": 0, "consensus_strength": "LOW", "feedback": f"Judge failed: {str(e)}"}
+            if "```json" in res_content:
+                res_content = res_content.split("```json", 1)[1].split("```", 1)[0].strip()
+            elif "{" in res_content and "}" in res_content:
+                res_content = res_content[res_content.find("{"):res_content.rfind("}") + 1]
+            return json.loads(res_content)
+        except Exception as exc:
+            logger.error("HiveAggregator.judge_hive failed: %s", exc, exc_info=True)
+            return {"status": "REJECT", "score": 0, "feedback": f"Hive judgement failed: {exc}"}

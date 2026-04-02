@@ -1,181 +1,130 @@
-"""
-AutonomousModelResearcher — Frontier v8.0
-Scans OpenRouter, Groq, and Gemini APIs for newly available models,
-evaluates them, and auto-registers the best ones into the Nexus Kernel.
-"""
-import os
+"""Model research agent for discovering and persisting available provider models."""
 import json
-import httpx
-import sqlite3
-import asyncio
-from datetime import datetime
+import logging
+import os
+from typing import Any, Dict, List
 
-MODEL_REGISTRY_PATH = os.path.join(
-    os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
-    "core", "model_registry.json"
-)
+import httpx
+
+from core.kernel import NexusKernel, PROJECT_ROOT, RENDER_DISK_PATH
+
+logger = logging.getLogger(__name__)
+
+MODEL_REGISTRY_PATH = os.path.join(PROJECT_ROOT, "core", "model_registry.json")
+MODEL_RESEARCH_CACHE = os.path.join(RENDER_DISK_PATH, "model_research")
+
 
 class AutonomousModelResearcher:
-    def __init__(self, kernel):
-        self.kernel = kernel
-        self.groq_key        = os.environ.get("GROQ_API_KEY", "")
-        self.openrouter_key  = os.environ.get("OPENROUTER_API_KEY", "")
-        self.gemini_key      = os.environ.get("GEMINI_API_KEY", "")
+    """Discover model catalogs from supported providers and persist a consolidated registry."""
 
-    # ── 1. Fetch live model lists from each provider ──────────────────────────
-    async def fetch_groq_models(self) -> list:
+    def __init__(self, kernel: NexusKernel):
+        self.kernel = kernel
+        self.groq_key = os.environ.get("GROQ_API_KEY", "")
+        self.openrouter_key = os.environ.get("OPENROUTER_API_KEY", "")
+        self.gemini_key = os.environ.get("GEMINI_API_KEY", "")
+        os.makedirs(MODEL_RESEARCH_CACHE, exist_ok=True)
+
+    async def fetch_groq_models(self) -> List[Dict[str, Any]]:
+        """Fetch available Groq models."""
+        if not self.groq_key:
+            return []
         try:
             async with httpx.AsyncClient(timeout=15) as client:
                 resp = await client.get(
                     "https://api.groq.com/openai/v1/models",
-                    headers={"Authorization": f"Bearer {self.groq_key}"}
+                    headers={"Authorization": f"Bearer {self.groq_key}"},
                 )
             if resp.status_code == 200:
                 models = resp.json().get("data", [])
-                return [{"provider": "groq", "id": m["id"], "owned_by": m.get("owned_by","groq"),
-                         "context_window": m.get("context_window", 8192)} for m in models]
-        except Exception as e:
-            print(f"⚠️ Groq model fetch error: {e}")
+                return [
+                    {
+                        "provider": "groq",
+                        "id": model["id"],
+                        "owned_by": model.get("owned_by", "groq"),
+                        "context_window": model.get("context_window", 8192),
+                    }
+                    for model in models
+                ]
+            logger.error("fetch_groq_models failed status=%s body=%s", resp.status_code, resp.text)
+        except Exception as exc:
+            logger.error("fetch_groq_models exception: %s", exc, exc_info=True)
         return []
 
-    async def fetch_openrouter_models(self) -> list:
+    async def fetch_openrouter_models(self) -> List[Dict[str, Any]]:
+        """Fetch available OpenRouter models."""
+        if not self.openrouter_key:
+            return []
         try:
-            async with httpx.AsyncClient(timeout=15) as client:
+            async with httpx.AsyncClient(timeout=20) as client:
                 resp = await client.get(
                     "https://openrouter.ai/api/v1/models",
-                    headers={"Authorization": f"Bearer {self.openrouter_key}",
-                             "HTTP-Referer": "https://nexus-ai-os.vercel.app"}
+                    headers={"Authorization": f"Bearer {self.openrouter_key}"},
                 )
             if resp.status_code == 200:
                 models = resp.json().get("data", [])
-                # Only include FREE models (pricing.prompt == "0")
-                free_models = [m for m in models
-                               if str(m.get("pricing", {}).get("prompt", "1")) == "0"]
-                return [{"provider": "openrouter", "id": m["id"],
-                         "name": m.get("name", m["id"]),
-                         "context_window": m.get("context_length", 8192),
-                         "is_free": True} for m in free_models[:20]]  # top 20 free
-        except Exception as e:
-            print(f"⚠️ OpenRouter model fetch error: {e}")
+                return [
+                    {
+                        "provider": "openrouter",
+                        "id": model["id"],
+                        "owned_by": model.get("architecture", {}).get("modality", "unknown"),
+                        "context_window": model.get("context_length", 0),
+                    }
+                    for model in models
+                ]
+            logger.error("fetch_openrouter_models failed status=%s body=%s", resp.status_code, resp.text)
+        except Exception as exc:
+            logger.error("fetch_openrouter_models exception: %s", exc, exc_info=True)
         return []
 
-    async def fetch_gemini_models(self) -> list:
+    async def fetch_gemini_models(self) -> List[Dict[str, Any]]:
+        """Fetch available Gemini models."""
+        if not self.gemini_key:
+            return []
         try:
-            async with httpx.AsyncClient(timeout=15) as client:
+            async with httpx.AsyncClient(timeout=20) as client:
                 resp = await client.get(
                     f"https://generativelanguage.googleapis.com/v1beta/models?key={self.gemini_key}"
                 )
             if resp.status_code == 200:
                 models = resp.json().get("models", [])
-                return [{"provider": "google", "id": m["name"].replace("models/",""),
-                         "name": m.get("displayName", m["name"]),
-                         "context_window": m.get("inputTokenLimit", 32768)} for m in models
-                        if "generateContent" in m.get("supportedGenerationMethods", [])]
-        except Exception as e:
-            print(f"⚠️ Gemini model fetch error: {e}")
+                return [
+                    {
+                        "provider": "google",
+                        "id": model.get("name", "").replace("models/", ""),
+                        "owned_by": "google",
+                        "context_window": model.get("inputTokenLimit", 0),
+                    }
+                    for model in models
+                ]
+            logger.error("fetch_gemini_models failed status=%s body=%s", resp.status_code, resp.text)
+        except Exception as exc:
+            logger.error("fetch_gemini_models exception: %s", exc, exc_info=True)
         return []
 
-    # ── 2. Load / Save registry ───────────────────────────────────────────────
-    def load_registry(self) -> dict:
-        if os.path.exists(MODEL_REGISTRY_PATH):
-            with open(MODEL_REGISTRY_PATH, "r") as f:
-                return json.load(f)
-        return {"models": {}, "last_updated": None}
-
-    def save_registry(self, registry: dict):
-        os.makedirs(os.path.dirname(MODEL_REGISTRY_PATH), exist_ok=True)
-        registry["last_updated"] = datetime.utcnow().isoformat()
-        with open(MODEL_REGISTRY_PATH, "w") as f:
-            json.dump(registry, f, indent=2)
-
-    # ── 3. AI-powered evaluation of new models ────────────────────────────────
-    async def evaluate_model(self, model: dict, provider: str, model_id: str) -> dict:
-        """Ask the Kernel to score a new model for quality and recommend tier."""
-        prompt = f"""You are the Nexus Model Evaluator. A new AI model has been discovered.
-Model: {json.dumps(model, indent=2)}
-
-Score it on:
-1. Speed (1-10)
-2. Intelligence (1-10)  
-3. Cost efficiency (1-10 — free=10, cheap=7, expensive=3)
-4. Best use case (one sentence)
-5. Recommended plan tier (STARTER / PRO / ENTERPRISE)
-
-Respond as JSON: {{"speed": N, "intelligence": N, "cost": N, "use_case": "...", "tier": "...", "overall": N}}"""
+    async def discover_models(self) -> List[Dict[str, Any]]:
+        """Fetch and consolidate model catalogs across all supported providers."""
+        import asyncio
 
         try:
-            response = await self.kernel.chat_async(
-                "groq", "llama-3.3-70b-versatile",
-                [{"role": "user", "content": prompt}]
+            groq_models, openrouter_models, gemini_models = await asyncio.gather(
+                self.fetch_groq_models(),
+                self.fetch_openrouter_models(),
+                self.fetch_gemini_models(),
             )
-            if "```json" in response:
-                response = response.split("```json")[1].split("```")[0]
-            elif "{" in response:
-                response = response[response.find("{"):response.rfind("}")+1]
-            return json.loads(response)
-        except:
-            return {"speed": 5, "intelligence": 5, "cost": 5,
-                    "use_case": "General purpose", "tier": "PRO", "overall": 5}
+            models = groq_models + openrouter_models + gemini_models
+            logger.info("AutonomousModelResearcher discovered %d models", len(models))
+            return models
+        except Exception as exc:
+            logger.error("discover_models failed: %s", exc, exc_info=True)
+            return []
 
-    # ── 4. Auto-register new models into pricing_config ──────────────────────
-    def register_model_in_db(self, provider: str, model_id: str,
-                              is_free: bool, db_path: str):
+    def save_registry(self, models: List[Dict[str, Any]]) -> bool:
+        """Persist the consolidated model registry to core/model_registry.json."""
         try:
-            input_cost  = 0.00 if is_free else 1.00
-            output_cost = 0.00 if is_free else 2.00
-            conn = sqlite3.connect(db_path)
-            conn.execute("""INSERT OR IGNORE INTO pricing_config
-                            (provider, model, input_cost_1m, output_cost_1m)
-                            VALUES (?,?,?,?)""",
-                         (provider, model_id, input_cost, output_cost))
-            conn.commit(); conn.close()
-            print(f"   ✅ Registered: {provider}/{model_id} (free={is_free})")
-        except Exception as e:
-            print(f"   ⚠️ DB register error: {e}")
-
-    # ── 5. Full discovery cycle ───────────────────────────────────────────────
-    async def discover_and_register(self, db_path: str, log_fn=None) -> dict:
-        def log(msg):
-            print(msg)
-            if log_fn: log_fn(msg)
-
-        log("🔍 AutonomousModelResearcher: Starting discovery cycle...")
-        registry = self.load_registry()
-        known_ids = set(registry["models"].keys())
-
-        # Parallel fetch from all providers
-        groq_models, or_models, gemini_models = await asyncio.gather(
-            self.fetch_groq_models(),
-            self.fetch_openrouter_models(),
-            self.fetch_gemini_models()
-        )
-
-        all_models = groq_models + or_models + gemini_models
-        log(f"   Found {len(all_models)} total models ({len(groq_models)} Groq, "
-            f"{len(or_models)} OpenRouter free, {len(gemini_models)} Gemini)")
-
-        new_models = [m for m in all_models if m["id"] not in known_ids]
-        log(f"   🆕 {len(new_models)} NEW models discovered!")
-
-        results = {"discovered": len(new_models), "registered": [], "evaluated": []}
-
-        for model in new_models[:10]:  # evaluate top 10 new per cycle
-            log(f"   🧠 Evaluating: {model['provider']}/{model['id']}")
-            score = await self.evaluate_model(model, model["provider"], model["id"])
-            model["score"] = score
-            registry["models"][model["id"]] = model
-
-            # Auto-register if overall score >= 6
-            if score.get("overall", 0) >= 6:
-                is_free = model.get("is_free", model["provider"] in ("groq", "google"))
-                self.register_model_in_db(model["provider"], model["id"],
-                                          is_free, db_path)
-                results["registered"].append(f"{model['provider']}/{model['id']}")
-                log(f"   ✅ Auto-registered {model['id']} (score={score['overall']}/10, tier={score.get('tier')})")
-            else:
-                log(f"   ⏭️  Skipped {model['id']} (score={score.get('overall', '?')}/10)")
-            results["evaluated"].append({"model": model["id"], "score": score})
-
-        self.save_registry(registry)
-        log(f"🎯 Discovery complete. Registered {len(results['registered'])} new models.")
-        return results
+            with open(MODEL_REGISTRY_PATH, "w", encoding="utf-8") as handle:
+                json.dump(models, handle, indent=2)
+            logger.info("Model registry saved to %s", MODEL_REGISTRY_PATH)
+            return True
+        except Exception as exc:
+            logger.error("save_registry failed: %s", exc, exc_info=True)
+            return False

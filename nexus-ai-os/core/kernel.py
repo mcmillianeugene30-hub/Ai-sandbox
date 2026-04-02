@@ -1,111 +1,137 @@
-import time
-import logging
+"""
+NexusKernel — Production Async Routing Engine
+Provides unified chat_async() and hive_poll() interfaces for all agents.
+
+Environment:
+    NEXUS_OS_PATH   — root of the nexus-ai-os package (auto-detected)
+    RENDER_DISK_PATH — persistent storage mount; falls back to ./data
+"""
 import os
 import sys
+import logging
 
-# Import providers from backend
-current_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-sys.path.insert(0, current_dir)
-os.environ.setdefault("NEXUS_OS_PATH", current_dir)
+# ─── Path bootstrap (must run before any local imports) ───────────────────────
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+sys.path.insert(0, PROJECT_ROOT)
+os.environ.setdefault("NEXUS_OS_PATH", PROJECT_ROOT)
 
-# Define the gemini process class
-class GeminiProcess:
-    def __init__(self):
-        self.timeout = 30  # seconds
-        self.resource_utilization = 0.5  # 50% utilization
+# Persistent storage root (Render disk or local fallback)
+RENDER_DISK_PATH: str = os.environ.get(
+    "RENDER_DISK_PATH",
+    os.path.join(PROJECT_ROOT, "data"),
+)
 
-    def run(self):
-        # Simulate the gemini process
-        logging.info("Gemini process started")
-        start_time = time.time()
-        while True:
-            # Check for timeout
-            if time.time() - start_time > self.timeout:
-                logging.error("Timeout occurred")
-                break
-            # Simulate resource-intensive task
-            time.sleep(1)
-            self.resource_utilization += 0.01
-            if self.resource_utilization > 0.8:  # 80% utilization threshold
-                logging.warning("High resource utilization detected")
-                # Reduce resource utilization by 20%
-                self.resource_utilization *= 0.8
+logger = logging.getLogger(__name__)
 
-    def optimize(self):
-        # Implement optimized timeout handling
-        self.timeout = 60  # increase timeout to 1 minute
-        logging.info("Timeout increased to 1 minute")
-
-    def optimize_resource_utilization(self):
-        # Implement optimized resource utilization
-        self.resource_utilization = 0.4  # reduce utilization to 40%
-        logging.info("Resource utilization reduced to 40%")
 
 class NexusKernel:
-    def __init__(self):
-        self.gemini_process = GeminiProcess()
-        self.logging_level = logging.INFO
+    """
+    Central async routing kernel for Nexus AI OS.
 
-    def configure_logging(self):
-        logging.basicConfig(level=self.logging_level)
+    Responsibilities:
+    - Route chat completions to the correct AI provider via backend.providers.
+    - Fan-out hive polls across multiple providers and collect results.
+    - Expose a consistent interface so every agent is provider-agnostic.
+    """
 
-    def start_gemini_process(self):
-        self.gemini_process.optimize()
-        self.gemini_process.optimize_resource_utilization()
-        self.gemini_process.run()
+    def __init__(self) -> None:
+        """Initialise the kernel; no I/O performed at construction time."""
+        logger.info("NexusKernel initialised (PROJECT_ROOT=%s)", PROJECT_ROOT)
 
-    def run(self):
-        self.configure_logging()
-        self.start_gemini_process()
+    # ──────────────────────────────────────────────────────────────────────────
+    # Public async API
+    # ──────────────────────────────────────────────────────────────────────────
 
-    async def chat_async(self, provider: str, model: str, messages: list, api_key: str = None) -> str:
-        """Async chat completion for AI provider communication"""
+    async def chat_async(
+        self,
+        provider: str,
+        model: str,
+        messages: list,
+        api_key: str = None,
+    ) -> str:
+        """
+        Send *messages* to *model* on *provider* and return the assistant text.
+
+        Args:
+            provider:  Provider slug, e.g. ``"groq"``, ``"google"``, ``"openrouter"``, ``"ollama"``.
+            model:     Model identifier understood by the provider.
+            messages:  OpenAI-style list of ``{"role": ..., "content": ...}`` dicts.
+            api_key:   Optional override; falls back to ``{PROVIDER}_API_KEY`` env var.
+
+        Returns:
+            The assistant message content as a string.
+
+        Raises:
+            ValueError: If no API key is available for a key-gated provider.
+            RuntimeError: If the provider is unknown or the call fails.
+        """
         try:
-            from backend.providers import get_provider
+            from backend.providers import get_provider  # local import — avoids circular deps at boot
 
-            # Get API key from environment if not provided
-            if not api_key:
-                api_key = os.environ.get(f"{provider.upper()}_API_KEY")
-
-            if not api_key and provider != "ollama":
-                raise ValueError(f"API key required for {provider}")
+            resolved_key = api_key or os.environ.get(f"{provider.upper()}_API_KEY")
+            if not resolved_key and provider != "ollama":
+                raise ValueError(
+                    f"No API key for provider '{provider}'. "
+                    f"Set {provider.upper()}_API_KEY in the environment."
+                )
 
             ai_provider = get_provider(provider)
-            if not ai_provider:
-                raise ValueError(f"Unknown provider: {provider}")
+            if ai_provider is None:
+                raise RuntimeError(f"Unknown provider: '{provider}'")
 
-            response = ai_provider.chat_complete(model, messages, api_key)
-            content = response.get("choices", [{}])[0].get("message", {}).get("content", "")
+            response = ai_provider.chat_complete(model, messages, resolved_key)
+            content: str = (
+                response.get("choices", [{}])[0]
+                .get("message", {})
+                .get("content", "")
+            )
+            logger.debug("chat_async OK provider=%s model=%s chars=%d", provider, model, len(content))
             return content
-        except Exception as e:
-            logging.error(f"Chat async error: {e}")
+
+        except (ValueError, RuntimeError):
             raise
+        except Exception as exc:
+            logger.error("chat_async failed provider=%s model=%s error=%s", provider, model, exc, exc_info=True)
+            raise RuntimeError(f"chat_async failed for {provider}/{model}: {exc}") from exc
 
     async def hive_poll(self, providers: list, messages: list) -> list:
-        """Poll multiple providers for consensus"""
-        results = []
-        for prov_config in providers:
+        """
+        Fan-out the same *messages* to every entry in *providers* and collect results.
+
+        Args:
+            providers: List of provider config dicts, each containing at least::
+
+                    {"provider": "groq", "model": "llama-3.3-70b-versatile"}
+
+            messages:  OpenAI-style message list forwarded to every provider.
+
+        Returns:
+            List of result dicts::
+
+                {"provider": str, "model": str, "content": str}
+
+            Failed providers are logged and silently omitted from the result list.
+        """
+        import asyncio
+
+        async def _call_one(prov_config: dict) -> dict | None:
+            provider_name = prov_config.get("provider", "")
+            model = prov_config.get("model", "llama-3.3-70b-versatile")
             try:
-                from backend.providers import get_provider
+                content = await self.chat_async(provider_name, model, messages)
+                return {"provider": provider_name, "model": model, "content": content}
+            except Exception as exc:
+                logger.warning(
+                    "hive_poll: provider=%s model=%s skipped error=%s",
+                    provider_name, model, exc,
+                )
+                return None
 
-                provider_name = prov_config.get("provider")
-                model = prov_config.get("model", "llama-3.3-70b-versatile")
-                api_key = os.environ.get(f"{provider_name.upper()}_API_KEY")
-
-                if provider_name == "ollama" or api_key:
-                    ai_provider = get_provider(provider_name)
-                    if ai_provider:
-                        response = ai_provider.chat_complete(model, messages, api_key)
-                        content = response.get("choices", [{}])[0].get("message", {}).get("content", "")
-                        results.append({"provider": provider_name, "content": content})
-            except Exception as e:
-                logging.error(f"Hive poll error for {prov_config}: {e}")
-
+        raw = await asyncio.gather(*[_call_one(p) for p in providers])
+        results = [r for r in raw if r is not None]
+        logger.info("hive_poll: %d/%d providers responded", len(results), len(providers))
         return results
 
-def main():
-    kernel = NexusKernel()
-    kernel.run()
 
-if __name__ == "__main__":
-    main()
+# Module-level singleton — all agents import this directly
+kernel = NexusKernel()

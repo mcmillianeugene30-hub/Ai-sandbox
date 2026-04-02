@@ -19,10 +19,15 @@ class RAGManager:
             return
 
         try:
-            persist_directory = os.path.join(
-                os.path.dirname(os.path.abspath(__file__)),
-                "chroma_db"
-            )
+            # Use Render persistent disk path if available
+            render_disk = os.environ.get("RENDER_DISK_PATH")
+            if render_disk:
+                persist_directory = os.path.join(render_disk, "chroma_db")
+            else:
+                persist_directory = os.path.join(
+                    os.path.dirname(os.path.abspath(__file__)),
+                    "chroma_db"
+                )
             os.makedirs(persist_directory, exist_ok=True)
 
             self.client = chromadb.PersistentClient(path=persist_directory)

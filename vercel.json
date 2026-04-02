@@ -4,15 +4,15 @@
   "routes": [
     {
       "src": "/dashboard",
-      "dest": "/frontend/dashboard.html"
+      "dest": "/frontend/index.html"
     },
     {
       "src": "/admin",
-      "dest": "/frontend/dashboard.html"
+      "dest": "/frontend/index.html"
     },
     {
       "src": "/nexus",
-      "dest": "/frontend/dashboard.html"
+      "dest": "/frontend/index.html"
     },
     {
       "src": "/pricing",
@@ -20,7 +20,7 @@
     },
     {
       "src": "/",
-      "dest": "/frontend/dashboard.html"
+      "dest": "/frontend/index.html"
     },
     {
       "src": "/(.*)",
