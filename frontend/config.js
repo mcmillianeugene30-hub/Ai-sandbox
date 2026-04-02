@@ -6,7 +6,7 @@
 
 const API_BASE = (
   window.__NEXUS_API_URL__ ||           // runtime injection (see index.html)
-  "https://nexus-backend.onrender.com"  // fallback: replace with your Render URL
+  "https://nexus-backend-ffn4.onrender.com"  // fallback: replace with your Render URL
 );
 
 window.NEXUS_API = API_BASE + "/api/v1";
