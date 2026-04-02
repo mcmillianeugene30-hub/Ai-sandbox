@@ -3,22 +3,31 @@ services:
     name: nexus-backend
     runtime: python
     region: oregon
-    plan: free                       # upgrade to starter ($7/mo) for always-on
-    rootDir: backend
-    buildCommand: pip install -r requirements.txt
-    startCommand: uvicorn main:app --host 0.0.0.0 --port $PORT
+    plan: free
+    buildCommand: cd backend && pip install -r requirements.txt
+    startCommand: cd backend && uvicorn main:app --host 0.0.0.0 --port $PORT
     envVars:
       - key: PYTHONPATH
-        value: /opt/render/project/src
+        value: /opt/render/project/src/backend:/opt/render/project/src
       - key: PYTHON_VERSION
         value: 3.11.0
+      - key: NEXUS_OS_PATH
+        value: /opt/render/project/src/nexus-ai-os
+      - key: RENDER_DISK_PATH
+        value: /opt/render/project/src/backend/data
       - key: GROQ_API_KEY
-        sync: false                  # set manually in Render dashboard
+        sync: false
       - key: GEMINI_API_KEY
         sync: false
       - key: OPENROUTER_API_KEY
         sync: false
+      - key: SECRET_KEY
+        sync: false
+      - key: FRONTEND_URL
+        sync: false
+      - key: RENDER_SERVICE_URL
+        sync: false
     disk:
       name: nexus-data
-      mountPath: /opt/render/project/src/data
+      mountPath: /opt/render/project/src/backend/data
       sizeGB: 1
