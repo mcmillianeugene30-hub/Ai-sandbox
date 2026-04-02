@@ -43,6 +43,8 @@ backend/usage.db
 # ChromaDB
 chroma_db/
 backend/chroma_db/
+nexus_ai_os/memory_db/
+nexus_ai_os/core/swarm.db
 nexus-ai-os/memory_db/
 nexus-ai-os/core/swarm.db
 
@@ -68,6 +70,7 @@ backend/uploads/
 
 # Generated/Temporary files
 projects/
+nexus_ai_os/projects/
 nexus-ai-os/projects/
 *.tmp
 *.bak

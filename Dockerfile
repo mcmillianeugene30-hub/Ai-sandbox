@@ -21,9 +21,9 @@ FROM deps AS final
 COPY . /app
 
 # Create runtime directories
-RUN mkdir -p /app/nexus-ai-os/projects \
-             /app/nexus-ai-os/memory_db \
-             /app/backend/uploads \
+RUN mkdir -p /app/nexus_ai_os/projects \
+             /app/nexus_ai_os/memory_db \
+             /app/backend/data/uploads \
              /app/backend/chroma_db
 
 # Set working dir to backend (where uvicorn runs)
@@ -33,4 +33,4 @@ EXPOSE 8000
 
 ENV PYTHONPATH=/app
 
-CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "2"]
+CMD ["uvicorn", "app:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "2"]
