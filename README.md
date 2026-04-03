@@ -1,4 +1,4 @@
-# ⬡ Project Nexus — Autonomous AI Operating System v8.0
+# ⬡ Project Nexus — Autonomous AI Operating System v9.0
 
 > **The world's most advanced self-evolving AI sandbox.** From a simple multi-provider playground to a full autonomous AI operating system — built, versioned, and deployed end-to-end.
 
@@ -12,7 +12,7 @@
 
 ## 🌌 What We Built
 
-Starting from a blank sandbox, we evolved this project through **8 major versions** into a production-ready, self-improving, commercially monetized AI operating system.
+Starting from a blank sandbox, we evolved this project through **9 major versions** into a production-ready, self-improving, commercially monetized AI operating system.
 
 ---
 
@@ -28,6 +28,7 @@ Starting from a blank sandbox, we evolved this project through **8 major version
 | **v6.0** | Enterprise | Admin Auth (Argon2 + JWT), Billing Dashboard, usage tracking in USD |
 | **v7.0** | Revenue Platform | Subscription plans, credit system, no free tier, top-up packs, model gating |
 | **v8.0** | Frontier OS | Auto-Deploy, Autonomous Model Discovery, Swarm Intelligence, Self-Evolution |
+| **v9.0** | Production Unified | Unified API prefix (/api/v1), Single-Page Unified Dashboard, Render CLI ready |
 
 ---
 
@@ -370,7 +371,7 @@ rag_manager.py                    └── HotSwapEngine
 
 ## 🏆 Achievements
 
-- ✅ **8 major versions** shipped from scratch
+- ✅ **9 major versions** shipped from scratch
 - ✅ **35 API endpoints** — auth, billing, AI, agents, swarm, singularity
 - ✅ **12 autonomous agents** working in concert
 - ✅ **Self-evolving kernel** — the AI rewrites its own source code
