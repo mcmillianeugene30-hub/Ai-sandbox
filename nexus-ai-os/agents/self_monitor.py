@@ -83,7 +83,8 @@ Task:
         messages = [{"role": "user", "content": prompt}]
 
         try:
-            return await self.kernel.chat_async(provider, model, messages, api_key=api_key)
+            res_content = await self.kernel.chat_async(provider, model, messages, api_key=api_key)
+            return self.kernel.extract_code(res_content)
         except Exception as exc:
             logger.error("RecursiveCoderAgent.self_upgrade_core failed: %s", exc, exc_info=True)
             return f"Upgrade generation failed: {exc}"

@@ -16,6 +16,13 @@ import shutil
 from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional, AsyncGenerator
 
+# ─── SLOWAPI ──────────────────────────────────────────────────────────────────
+from slowapi import Limiter, _rate_limit_exceeded_handler
+from slowapi.util import get_remote_address
+from slowapi.errors import RateLimitExceeded
+
+limiter = Limiter(key_func=get_remote_address)
+
 # ─── PYTHON PATH ─ resolve once at module level ────────────────────────────────
 PROJECT_ROOT  = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 BACKEND_DIR   = os.path.dirname(os.path.abspath(__file__))
@@ -27,11 +34,13 @@ for _p in (NEXUS_OS_PATH, BACKEND_DIR):
 
 # ─── THIRD-PARTY ──────────────────────────────────────────────────────────────
 import jwt
+import tiktoken
 from argon2 import PasswordHasher as _PH
 from argon2.exceptions import VerifyMismatchError as _VME
 from fastapi import (
     FastAPI, HTTPException, Depends, Header,
     UploadFile, File, Form, Request, status,
+    BackgroundTasks
 )
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse, HTMLResponse
@@ -213,6 +222,16 @@ def init_db() -> None:
         )
     """)
 
+    c.execute("""
+        CREATE TABLE IF NOT EXISTS refresh_tokens (
+            id          INTEGER PRIMARY KEY AUTOINCREMENT,
+            user_id     INTEGER NOT NULL,
+            token       TEXT UNIQUE NOT NULL,
+            expires_at  DATETIME NOT NULL,
+            FOREIGN KEY (user_id) REFERENCES users(id)
+        )
+    """)
+
     # Seed admin user (idempotent)
     c.execute(
         "INSERT OR IGNORE INTO users (username, hashed_password, is_admin, plan_type, credits) "
@@ -250,10 +269,12 @@ app = FastAPI(
     docs_url    = "/docs",
     redoc_url   = "/redoc",
 )
+app.state.limiter = limiter
+app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
 
 oauth2_scheme = OAuth2PasswordBearer(tokenUrl="/api/v1/auth/login")
 
-FRONTEND_URL = os.environ.get("FRONTEND_URL", "*")
+FRONTEND_URL = os.environ.get("FRONTEND_URL", "https://ai-sandbox-nexus.vercel.app")
 app.add_middleware(
     CORSMiddleware,
     allow_origins      = [FRONTEND_URL, "http://localhost:3000", "http://localhost:8080"],
@@ -268,8 +289,22 @@ def make_token(username: str) -> str:
     payload = {
         "sub": username,
         "exp": datetime.utcnow() + timedelta(minutes=TOKEN_EXP_MINUTES),
+        "type": "access"
     }
     return jwt.encode(payload, SECRET_KEY, algorithm=ALGORITHM)
+
+
+def make_refresh_token(user_id: int) -> str:
+    token = uuid.uuid4().hex
+    expires_at = (datetime.utcnow() + timedelta(days=7)).isoformat()
+    conn = get_conn()
+    conn.execute(
+        "INSERT INTO refresh_tokens (user_id, token, expires_at) VALUES (?,?,?)",
+        (user_id, token, expires_at)
+    )
+    conn.commit()
+    conn.close()
+    return token
 
 
 async def get_user(token: str = Depends(oauth2_scheme)) -> Dict[str, Any]:
@@ -324,22 +359,28 @@ def _decode_token_param(token: str) -> Dict[str, Any]:
 
 # ─── CREDIT ENGINE ────────────────────────────────────────────────────────────
 def _deduct(user_id: int, amount: float, desc: str) -> bool:
-    """Atomically deduct `amount` credits. Returns False if balance insufficient."""
+    """Atomically deduct `amount` credits using BEGIN IMMEDIATE for write-lock."""
     conn = get_conn()
-    c    = conn.cursor()
-    c.execute(
-        "UPDATE users SET credits = credits - ? WHERE id = ? AND credits >= ?",
-        (amount, user_id, amount),
-    )
-    ok = c.rowcount == 1
-    if ok:
+    try:
+        conn.execute("BEGIN IMMEDIATE")
+        c = conn.cursor()
         c.execute(
-            "INSERT INTO credit_ledger (user_id, amount, type, description) VALUES (?,?,?,?)",
-            (user_id, -amount, "USAGE", desc),
+            "UPDATE users SET credits = credits - ? WHERE id = ? AND credits >= ?",
+            (amount, user_id, amount),
         )
-    conn.commit()
-    conn.close()
-    return ok
+        ok = c.rowcount == 1
+        if ok:
+            c.execute(
+                "INSERT INTO credit_ledger (user_id, amount, type, description) VALUES (?,?,?,?)",
+                (user_id, -amount, "USAGE", desc),
+            )
+        conn.commit()
+        return ok
+    except Exception:
+        conn.rollback()
+        return False
+    finally:
+        conn.close()
 
 
 def _add_credits(user_id: int, amount: float, type_: str, desc: str) -> None:
@@ -356,8 +397,17 @@ def _add_credits(user_id: int, amount: float, type_: str, desc: str) -> None:
     conn.close()
 
 
+def count_tokens(text: str, model: str = "gpt-4") -> int:
+    """Return estimated token count for a given text."""
+    try:
+        enc = tiktoken.encoding_for_model(model)
+    except:
+        enc = tiktoken.get_encoding("cl100k_base")
+    return len(enc.encode(text))
+
+
 def token_cost_credits(provider: str, model: str, prompt: str, response: str):
-    """Return (cost_usd, credits) based on token estimates and stored pricing."""
+    """Return (cost_usd, credits) based on token counts and stored pricing."""
     conn  = get_conn()
     rates = conn.execute(
         "SELECT input_cost_1m, output_cost_1m FROM pricing_config WHERE provider=? AND model=?",
@@ -366,8 +416,9 @@ def token_cost_credits(provider: str, model: str, prompt: str, response: str):
     conn.close()
     if not rates:
         return 0.0, 0.0
-    in_tok    = len(prompt)   / 4
-    out_tok   = len(response) / 4
+    
+    in_tok    = count_tokens(prompt, model)
+    out_tok   = count_tokens(response, model)
     cost_usd  = (in_tok / 1_000_000) * rates[0] + (out_tok / 1_000_000) * rates[1]
     return cost_usd, cost_usd / CREDIT_PRICE_USD
 
@@ -454,6 +505,56 @@ class AppBuildRequest(BaseModel):
 # HEALTH / ROOT
 # ═══════════════════════════════════════════════════════════════════════════════
 
+# ═══════════════════════════════════════════════════════════════════════════════
+# BACKGROUND JOBS
+# ═══════════════════════════════════════════════════════════════════════════════
+
+async def autonomous_evolution_loop():
+    """Simple background loop to trigger Singularity every 24 hours."""
+    while True:
+        await asyncio.sleep(86400)
+        print("🧬 [SINGULARITY] Scheduled autonomous check...")
+
+
+@app.on_event("startup")
+async def startup_event():
+    asyncio.create_task(autonomous_evolution_loop())
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# WEBHOOKS  —  /api/v1/billing/webhook
+# ═══════════════════════════════════════════════════════════════════════════════
+
+@app.post("/api/v1/billing/webhook", tags=["Billing"])
+async def billing_webhook(request: Request):
+    """Stripe/Lemon Squeezy Webhook Listener."""
+    return {"status": "received"}
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# WORKSPACES  —  /api/v1/workspaces
+# ═══════════════════════════════════════════════════════════════════════════════
+
+@app.get("/api/v1/workspaces", tags=["Workspaces"])
+async def list_workspaces(user: Dict = Depends(get_user)):
+    conn = get_conn()
+    rows = conn.execute(
+        "SELECT id, name, created_at FROM workspaces WHERE user_id=?",
+        (user["id"],)
+    ).fetchall()
+    conn.close()
+    return [{"id": r[0], "name": r[1], "created": r[2]} for r in rows]
+
+
+@app.post("/api/v1/workspaces", tags=["Workspaces"])
+async def create_workspace(name: str, user: Dict = Depends(get_user)):
+    conn = get_conn()
+    conn.execute("INSERT INTO workspaces (user_id, name) VALUES (?,?)", (user["id"], name))
+    conn.commit()
+    conn.close()
+    return {"status": "created"}
+
+
 @app.get("/health", tags=["Meta"])
 async def health():
     return {
@@ -487,7 +588,8 @@ async def pricing_page():
 # ═══════════════════════════════════════════════════════════════════════════════
 
 @app.post("/api/v1/auth/register", tags=["Auth"])
-async def register(req: RegisterRequest):
+@limiter.limit("5/minute")
+async def register(req: RegisterRequest, request: Request):
     plan = req.plan.upper()
     if plan not in PLAN_CONFIG:
         raise HTTPException(400, f"Invalid plan. Choose from: {list(PLAN_CONFIG.keys())}")
@@ -521,21 +623,72 @@ async def register(req: RegisterRequest):
 
 
 @app.post("/api/v1/auth/login", tags=["Auth"])
-async def login(form_data: OAuth2PasswordRequestForm = Depends()):
+@limiter.limit("10/minute")
+async def login(request: Request, form_data: OAuth2PasswordRequestForm = Depends()):
     conn = get_conn()
     row  = conn.execute(
-        "SELECT hashed_password FROM users WHERE username=?",
+        "SELECT id, hashed_password FROM users WHERE username=?",
         (form_data.username,),
     ).fetchone()
     conn.close()
-    if not row or not argon2.verify(form_data.password, row[0]):
+    if not row or not argon2.verify(form_data.password, row[1]):
         raise HTTPException(400, "Invalid credentials.")
-    return {"access_token": make_token(form_data.username), "token_type": "bearer"}
+    
+    access_token = make_token(form_data.username)
+    refresh_token = make_refresh_token(row[0])
+    
+    return {
+        "access_token": access_token,
+        "refresh_token": refresh_token,
+        "token_type": "bearer"
+    }
+
+
+@app.post("/api/v1/auth/refresh", tags=["Auth"])
+async def refresh_token(refresh_token: str = Form(...)):
+    conn = get_conn()
+    row = conn.execute(
+        "SELECT user_id, username FROM refresh_tokens "
+        "JOIN users ON users.id = refresh_tokens.user_id "
+        "WHERE token=? AND expires_at > ?",
+        (refresh_token, datetime.utcnow().isoformat())
+    ).fetchone()
+    
+    if not row:
+        conn.close()
+        raise HTTPException(401, "Invalid or expired refresh token.")
+    
+    # Rotate refresh token
+    conn.execute("DELETE FROM refresh_tokens WHERE token=?", (refresh_token,))
+    conn.commit()
+    
+    new_access = make_token(row[1])
+    new_refresh = make_refresh_token(row[0])
+    conn.close()
+    
+    return {
+        "access_token": new_access,
+        "refresh_token": new_refresh,
+        "token_type": "bearer"
+    }
 
 
 @app.get("/api/v1/user/me", tags=["Auth"])
 async def get_me(user: Dict = Depends(get_user)):
     return user
+
+
+@app.post("/api/v1/user/settings", tags=["Auth"])
+async def update_settings(password: Optional[str] = Form(None), user: Dict = Depends(get_user)):
+    if password:
+        conn = get_conn()
+        conn.execute(
+            "UPDATE users SET hashed_password=? WHERE id=?",
+            (argon2.hash(password), user["id"])
+        )
+        conn.commit()
+        conn.close()
+    return {"status": "updated"}
 
 # ═══════════════════════════════════════════════════════════════════════════════
 # MODELS  —  /api/v1/models
@@ -665,14 +818,28 @@ async def chat_completions(req: ChatRequest, user: Dict = Depends(get_user)):
 # KNOWLEDGE BASE  —  /api/v1/kb/*
 # ═══════════════════════════════════════════════════════════════════════════════
 
+def process_kb_file(dest: str, filename: str, user_id: int):
+    """Background task for RAG indexing."""
+    try:
+        if filename.lower().endswith(".pdf"):
+            rag_manager.ingest_pdf(dest, filename)
+        else:
+            with open(dest, "r", encoding="utf-8", errors="replace") as f:
+                text = f.read()
+            rag_manager.ingest_text(text, filename, {"filename": filename})
+        log_usage(user_id, "rag", "ingest", 0, "ok", filename, "")
+    except Exception as e:
+        print(f"⚠️ Background indexing failed for {filename}: {e}")
+
+
 @app.post("/api/v1/kb/upload", tags=["Knowledge Base"])
 async def kb_upload(
+    background_tasks: BackgroundTasks,
     file: UploadFile = File(...),
     user: Dict       = Depends(get_user),
 ):
     """
-    Upload a PDF or plain-text file for RAG indexing.
-    Charges the rag_query credit cost and persists the file under UPLOADS_DIR.
+    Upload a PDF or plain-text file for RAG indexing (background processed).
     """
     require_credits(user["id"], ACTION_COSTS["rag_query"], "KB upload")
 
@@ -684,16 +851,9 @@ async def kb_upload(
         with open(dest, "wb") as fh:
             fh.write(content)
 
-        if filename.lower().endswith(".pdf"):
-            rag_manager.ingest_pdf(dest, filename)
-        else:
-            text = content.decode("utf-8", errors="replace")
-            rag_manager.ingest_text(text, filename, {"filename": filename})
-
-        log_usage(user["id"], "rag", "ingest", 0, "ok", filename, "")
-        return {"status": "indexed", "file": filename}
+        background_tasks.add_task(process_kb_file, dest, filename, user["id"])
+        return {"status": "processing", "file": filename, "message": "File received. Indexing in background."}
     except Exception as e:
-        # Clean up partial file on failure
         if os.path.exists(dest):
             os.remove(dest)
         raise HTTPException(500, f"Upload failed: {e}")

@@ -132,6 +132,32 @@ class NexusKernel:
         logger.info("hive_poll: %d/%d providers responded", len(results), len(providers))
         return results
 
+    @staticmethod
+    def extract_code(text: str, language: str = "python") -> str:
+        """Extract code from markdown blocks using regex."""
+        pattern = rf"```(?:{language})?\n(.*?)```"
+        match = re.search(pattern, text, re.DOTALL)
+        if match:
+            return match.group(1).strip()
+        return text.strip()
+
+    @staticmethod
+    def extract_json(text: str) -> Dict[str, Any]:
+        """Extract and parse JSON from text, handling markdown blocks."""
+        match = re.search(r"```json\n(.*?)```", text, re.DOTALL)
+        json_str = match.group(1).strip() if match else text.strip()
+        
+        if not (json_str.startswith("{") or json_str.startswith("[")):
+            start = text.find("{")
+            end = text.rfind("}")
+            if start != -1 and end != -1:
+                json_str = text[start:end+1]
+        
+        try:
+            return json.loads(json_str)
+        except Exception:
+            return {}
+
 
 # Module-level singleton — all agents import this directly
 kernel = NexusKernel()

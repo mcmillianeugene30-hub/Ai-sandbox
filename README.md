@@ -1,6 +1,6 @@
-# ⬡ Project Nexus — Autonomous AI Operating System v9.0
+# ⬡ Project Nexus — Autonomous AI Operating System v10.0 'Empire'
 
-> **The world's most advanced self-evolving AI sandbox.** From a simple multi-provider playground to a full autonomous AI operating system — built, versioned, and deployed end-to-end.
+> **The world's first industrial-grade self-evolving AI operating system.** From a multi-provider sandbox to a secure, multi-tenant, visual agentic platform — built for scale.
 
 [![Deploy](https://img.shields.io/badge/Frontend-Vercel-black?logo=vercel)](https://vercel.com)
 [![Backend](https://img.shields.io/badge/Backend-Render-46E3B7?logo=render)](https://render.com)
@@ -29,16 +29,20 @@ Starting from a blank sandbox, we evolved this project through **9 major version
 | **v7.0** | Revenue Platform | Subscription plans, credit system, no free tier, top-up packs, model gating |
 | **v8.0** | Frontier OS | Auto-Deploy, Autonomous Model Discovery, Swarm Intelligence, Self-Evolution |
 | **v9.0** | Production Unified | Unified API prefix (/api/v1), Single-Page Unified Dashboard, Render CLI ready |
+| **v10.0** | Empire Edition | Refresh Token Rotation, Rate Limiting, Visual Node Editor, Multi-tenant Workspaces |
 
 ---
 
 ## 🧠 Core Capabilities
 
-### 🔬 AI Sandbox Playground
+### 🔬 AI Sandbox & Visual Orchestrator
 - Multi-provider chat completions: **Groq**, **Gemini**, **OpenRouter**, **Ollama**
+- **Visual Node Editor** (LiteGraph.js) for agentic workflow design
 - Monaco code editor with live execution
 - Real-time SSE streaming
-- RAG toggle (ChromaDB knowledge base)
+- **Refresh Token Rotation** for seamless, secure user sessions
+- **API Rate Limiting** protection via SlowAPI
+- RAG toggle (ChromaDB knowledge base) with **Background Ingestion**
 - Side-by-side model comparison
 - React Hook & Flutter code export
 
@@ -371,8 +375,11 @@ rag_manager.py                    └── HotSwapEngine
 
 ## 🏆 Achievements
 
-- ✅ **9 major versions** shipped from scratch
-- ✅ **35 API endpoints** — auth, billing, AI, agents, swarm, singularity
+- ✅ **10 major versions** shipped from scratch
+- ✅ **Refresh Token Rotation** & **Rate Limiting** implemented
+- ✅ **Visual Node Editor** integration for agent workflows
+- ✅ **Multi-tenant Workspace** isolation
+- ✅ **35+ API endpoints** — auth, billing, AI, agents, swarm, singularity
 - ✅ **12 autonomous agents** working in concert
 - ✅ **Self-evolving kernel** — the AI rewrites its own source code
 - ✅ **Swarm intelligence** — up to 8 parallel nodes with consensus
