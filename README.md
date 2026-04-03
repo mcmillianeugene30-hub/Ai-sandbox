@@ -162,7 +162,7 @@ docker-compose up --build
 
 # 4. Access
 # Frontend: http://localhost:8080/dashboard.html
-# Backend API: http://localhost:8000/docs
+# Backend API: https://nexus-backend-ffn4.onrender.com/docs
 # Pricing: http://localhost:8080/pricing.html
 ```
 
@@ -304,7 +304,7 @@ Admin login: `nexus` / `nexus2026`
 ```python
 from sdks.python.aisandbox import AISandboxClient
 
-client = AISandboxClient(base_url="https://nexus-backend-xxxx.onrender.com")
+client = AISandboxClient(base_url="https://nexus-backend-ffn4.onrender.com")
 response = client.chat.completions(
     provider="groq",
     model="llama-3.3-70b-versatile",
@@ -317,7 +317,7 @@ print(response)
 ```javascript
 import AISandboxClient from './sdks/javascript/aisandbox.js';
 
-const client = new AISandboxClient('https://nexus-backend-xxxx.onrender.com');
+const client = new AISandboxClient('https://nexus-backend-ffn4.onrender.com');
 const stream = await client.chat.completions('groq', 'llama-3.3-70b-versatile', messages, { stream: true });
 
 for await (const chunk of stream) {

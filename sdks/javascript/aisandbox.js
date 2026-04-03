@@ -1,6 +1,6 @@
 class AISandboxClient {
-    constructor(config = { baseUrl: "http://localhost:8000", apiKey: "" }) {
-        this.baseUrl = config.baseUrl || "http://localhost:8000";
+    constructor(config = { baseUrl: "https://nexus-backend-ffn4.onrender.com", apiKey: "" }) {
+        this.baseUrl = config.baseUrl || "https://nexus-backend-ffn4.onrender.com";
         this.apiKey = config.apiKey || "";
         this.chat = new Chat(this);
     }
