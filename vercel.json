@@ -6,27 +6,27 @@
   "routes": [
     {
       "src": "/dashboard",
-      "dest": "/frontend/index.html"
+      "dest": "/index.html"
     },
     {
       "src": "/admin",
-      "dest": "/frontend/index.html"
+      "dest": "/index.html"
     },
     {
       "src": "/nexus",
-      "dest": "/frontend/index.html"
+      "dest": "/index.html"
     },
     {
       "src": "/pricing",
-      "dest": "/frontend/pricing.html"
+      "dest": "/pricing.html"
     },
     {
       "src": "/",
-      "dest": "/frontend/index.html"
+      "dest": "/index.html"
     },
     {
       "src": "/(.*)",
-      "dest": "/frontend/$1"
+      "dest": "/$1"
     }
   ],
   "headers": [
