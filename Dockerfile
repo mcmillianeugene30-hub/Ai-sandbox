@@ -11,7 +11,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # ── Stage 2: dependencies ──────────────────────────────────────────────────────
 FROM base AS deps
 
-COPY backend/requirements.txt /app/requirements.txt
+COPY requirements.txt /app/requirements.txt
 RUN pip install --no-cache-dir -r /app/requirements.txt
 
 # ── Stage 3: final ─────────────────────────────────────────────────────────────

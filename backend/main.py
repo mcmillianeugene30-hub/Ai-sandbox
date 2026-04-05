@@ -17,6 +17,7 @@ from datetime import datetime, timedelta
 from typing import Any, Dict, List, Optional, AsyncGenerator
 
 # ─── SLOWAPI ──────────────────────────────────────────────────────────────────
+import stripe
 from slowapi import Limiter, _rate_limit_exceeded_handler
 from slowapi.util import get_remote_address
 from slowapi.errors import RateLimitExceeded
@@ -66,6 +67,7 @@ try:
     from agents.auto_deploy    import AutoDeployAgent
     from agents.model_researcher import AutonomousModelResearcher, MODEL_REGISTRY_PATH
     from agents.self_monitor   import SelfMonitorAgent, RecursiveCoderAgent
+    from agents.data_analyst   import DataAnalystAgent
     from tools.fs_tool         import fs_tool
     _NEXUS_AVAILABLE = True
 except ImportError as _e:
@@ -88,6 +90,10 @@ class argon2:
             return False
 
 # ─── CONFIGURATION ────────────────────────────────────────────────────────────
+STRIPE_SECRET_KEY  = os.environ.get("STRIPE_SECRET_KEY", "")
+STRIPE_WEBHOOK_SEC = os.environ.get("STRIPE_WEBHOOK_SECRET", "")
+stripe.api_key     = STRIPE_SECRET_KEY
+
 SECRET_KEY         = os.environ.get("SECRET_KEY", "nexus_super_secret_key_2026")
 ALGORITHM          = "HS256"
 TOKEN_EXP_MINUTES  = int(os.environ.get("TOKEN_EXP_MINUTES", 600))
@@ -509,6 +515,35 @@ class AppBuildRequest(BaseModel):
 # BACKGROUND JOBS
 # ═══════════════════════════════════════════════════════════════════════════════
 
+async def autonomous_evolve_internal():
+    """Run the self-evolution cycle autonomously."""
+    if not _NEXUS_AVAILABLE: return
+    try:
+        kernel  = NexusKernel()
+        monitor = SelfMonitorAgent(kernel, db_path=DB_PATH)
+        coder   = RecursiveCoderAgent(kernel)
+        
+        # 1. Analyze
+        proposal = await monitor.analyze_performance("groq", "llama-3.3-70b-versatile")
+        if "propose" not in proposal.lower():
+            print("🧬 [SINGULARITY] No evolution proposal generated.")
+            return
+            
+        # 2. Upgrade
+        target = os.path.join(NEXUS_OS_PATH, "core", "kernel.py")
+        new_code = await coder.self_upgrade_core(proposal, target, "groq", "llama-3.3-70b-versatile")
+        
+        if len(new_code) > 100: # Basic safety check
+            with open(target, "w", encoding="utf-8") as f:
+                f.write(new_code)
+            
+            # 3. Hot-swap
+            hot_swapper.reload_core("kernel")
+            print(f"🧬 [SINGULARITY] Evolution successful. Kernel upgraded and hot-swapped.")
+    except Exception as e:
+        print(f"🧬 [SINGULARITY] Evolution cycle failed: {e}")
+
+
 async def autonomous_evolution_loop():
     """Autonomous background check for system errors and self-evolution."""
     while True:
@@ -516,7 +551,8 @@ async def autonomous_evolution_loop():
         try:
             conn = get_conn()
             # Calculate error rate in last 100 requests
-            total = conn.execute("SELECT count(*) FROM usage_logs").fetchone()[0]
+            cursor = conn.execute("SELECT count(*) FROM usage_logs")
+            total = cursor.fetchone()[0]
             if total > 50:
                 errors = conn.execute(
                     "SELECT count(*) FROM usage_logs WHERE status != 'ok' AND timestamp > datetime('now', '-1 hour')"
@@ -528,8 +564,7 @@ async def autonomous_evolution_loop():
                 error_rate = errors / recent if recent > 0 else 0
                 if error_rate > 0.15: # 15% error rate threshold
                     print(f"🧬 [SINGULARITY] High error rate detected ({error_rate:.2%}). Triggering evolution...")
-                    # Trigger the evolution agent logic here or call internal function
-                    # await singularity_evolve_internal()
+                    await autonomous_evolve_internal()
             conn.close()
         except Exception as e:
             print(f"⚠️ Autonomous check failed: {e}")
@@ -546,8 +581,49 @@ async def startup_event():
 
 @app.post("/api/v1/billing/webhook", tags=["Billing"])
 async def billing_webhook(request: Request):
-    """Stripe/Lemon Squeezy Webhook Listener."""
-    return {"status": "received"}
+    """
+    Stripe Webhook Listener with signature verification.
+    """
+    payload = await request.body()
+    sig_header = request.headers.get("stripe-signature")
+
+    try:
+        event = stripe.Webhook.construct_event(
+            payload, sig_header, STRIPE_WEBHOOK_SEC
+        )
+    except Exception as e:
+        # For development, we log but don't strictly fail if keys are missing
+        print(f"⚠️ Webhook sig failed (check env vars): {e}")
+        return {"status": "ignored", "reason": "invalid signature"}
+
+    # Handle the event
+    if event['type'] == 'checkout.session.completed':
+        session = event['data']['object']
+        # Extract user_id and credits from session metadata
+        user_id = session.get('metadata', {}).get('user_id')
+        amount  = float(session.get('metadata', {}).get('credits', 0))
+        if user_id and amount > 0:
+            _add_credits(int(user_id), amount, "TOPUP", "Stripe payment successful")
+
+    return {"status": "success"}
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# AUTH — SOCIAL LOGIN
+# ═══════════════════════════════════════════════════════════════════════════════
+
+@app.get("/api/v1/auth/github", tags=["Auth"])
+async def github_login():
+    """Redirect to GitHub OAuth."""
+    client_id = os.environ.get("GITHUB_CLIENT_ID", "mock_id")
+    return {"url": f"https://github.com/login/oauth/authorize?client_id={client_id}&scope=user:email"}
+
+
+@app.get("/api/v1/auth/google", tags=["Auth"])
+async def google_login():
+    """Redirect to Google OAuth."""
+    client_id = os.environ.get("GOOGLE_CLIENT_ID", "mock_id")
+    return {"url": f"https://accounts.google.com/o/oauth2/v2/auth?client_id={client_id}&response_type=code&scope=openid%20email"}
 
 
 # ═══════════════════════════════════════════════════════════════════════════════
@@ -793,8 +869,18 @@ async def update_settings(password: Optional[str] = Form(None), user: Dict = Dep
 
 @app.get("/api/v1/models", tags=["Models"])
 async def list_models():
-    """Return all available models grouped by provider."""
-    return {"models": AVAILABLE_MODELS}
+    """Return all available models, merging hardcoded defaults with discovered registry."""
+    models = AVAILABLE_MODELS.copy()
+    if os.path.exists(MODEL_REGISTRY_PATH):
+        try:
+            with open(MODEL_REGISTRY_PATH) as f:
+                reg = json.load(f).get("models", {})
+                for mid, info in reg.items():
+                    prov = info.get("provider")
+                    if prov in models and mid not in models[prov]:
+                        models[prov].append(mid)
+        except: pass
+    return {"models": models}
 
 
 @app.post("/api/v1/models/discover", tags=["Models"])
@@ -1231,6 +1317,7 @@ async def stream_nexus_app_build(task: str, token: str):
 
             for step in task_tree:
                 sub = step.get("task", "")
+                yield f"data: {json.dumps({'type': 'agent_start', 'agent': 'hive'})}\n\n"
                 yield f"data: {json.dumps({'type': 'log', 'agent': 'hive', 'message': f'Hive Poll: {sub}'})}\n\n"
                 hive_out = await kernel.hive_poll(
                     [{"provider": "groq", "model": "llama-3.3-70b-versatile"}],
