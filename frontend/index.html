@@ -8,9 +8,9 @@
   <!-- Injected Config -->
   <script src="config.js"></script>
   <script>
-    // Fallback if config.js fails
-    if (!window.NEXUS_API) {
-      window.NEXUS_API = 'https://nexus-backend-ffn4.onrender.com/api/v1';
+    window.__NEXUS_API_URL__ = ""; // Injected by build-frontend.sh
+    if (!window.NEXUS_API && window.__NEXUS_API_URL__) {
+      window.NEXUS_API = window.__NEXUS_API_URL__ + '/api/v1';
     }
   </script>
 

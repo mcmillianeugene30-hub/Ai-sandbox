@@ -1,6 +1,8 @@
 {
   "version": 2,
   "name": "nexus-ai-os",
+  "buildCommand": "./build-frontend.sh",
+  "outputDirectory": "frontend",
   "routes": [
     {
       "src": "/dashboard",
