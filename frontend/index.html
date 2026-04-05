@@ -40,10 +40,10 @@
     <div class="nav-sep" style="margin:20px 0"></div>
     
     <div style="display:flex; flex-direction:column; gap:10px;">
-      <button class="btn btn-sm" style="background:#24292e; color:white; width:100%; justify-content:center;">
+      <button class="btn btn-sm btn-social" data-provider="github" style="background:#24292e; color:white; width:100%; justify-content:center;">
         <span class="icon">🐙</span> Continue with GitHub
       </button>
-      <button class="btn btn-sm" style="background:white; color:#444; width:100%; justify-content:center;">
+      <button class="btn btn-sm btn-social" data-provider="google" style="background:white; color:#444; width:100%; justify-content:center;">
         <span class="icon">🔍</span> Continue with Google
       </button>
     </div>
@@ -248,7 +248,12 @@
       <!-- Other tabs follow same pattern -->
       <div id="tab-users" class="tab-pane"><div class="card"><div class="tbl-wrap"><table><thead><tr><th>ID</th><th>User</th><th>Email</th><th>Plan</th><th>Credits</th><th>Expires</th><th>Actions</th></tr></thead><tbody id="users-tbl"></tbody></table></div></div></div>
       <div id="tab-logs" class="tab-pane"><div class="card"><div class="tbl-wrap"><table><thead><tr><th>★</th><th>ID</th><th>User</th><th>Model</th><th>Tokens</th><th>Cost</th><th>Time</th><th>Status</th></tr></thead><tbody id="logs-tbl"></tbody></table></div></div></div>
-      <div id="tab-billing" class="tab-pane"><div class="row"><div class="col card"><div class="card-title">Plans</div><div class="tbl-wrap"><table><thead><tr><th>Plan</th><th>Price</th><th>Credits</th><th>Models</th></tr></thead><tbody id="billing-plans-tbl"></tbody></table></div></div></div></div>
+      <div id="tab-billing" class="tab-pane">
+        <div class="flex-between">
+          <div style="font-family:var(--font-head);font-size:18px;font-weight:700;color:var(--cyan)">💳 BILLING & CREDITS</div>
+          <button id="btn-buy-credits" class="btn btn-neon">💳 BUY CREDITS (STRIPE)</button>
+        </div>
+        <div class="row">
       
       <!-- ══ JUDGE ══ -->
       <div id="tab-judge" class="tab-pane">

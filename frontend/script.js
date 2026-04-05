@@ -115,6 +115,19 @@ function fmtMoney(n) {
 /* ═══════════════════════════════════════════════════════════
    AUTH
    ═══════════════════════════════════════════════════════════ */
+// --- AUTH ---
+async function doSocialLogin(provider) {
+  try {
+    const r = await fetch(`${API_ROOT}/auth/${provider}`);
+    if (r.ok) {
+      const data = await r.json();
+      window.location.href = data.url;
+    }
+  } catch (e) {
+    alert(`Social login failed for ${provider}`);
+  }
+}
+
 async function doLogin() {
   const user = $('inp-user').value.trim();
   const pass = $('inp-pass').value;
@@ -362,7 +375,23 @@ async function toggleStar(id) {
   loadLogs();
 }
 
+// --- MARKETPLACE ---
+document.querySelectorAll('#tab-marketplace .btn').forEach(btn => {
+  btn.onclick = () => {
+    const agent = btn.parentElement.querySelector('div').textContent;
+    alert(`Installing ${agent} into your Nexus kernel...`);
+    appendTerminal('sb-console', `[MARKETPLACE] Installed ${agent}.`, 't-ok');
+  };
+});
+
 // --- BILLING ---
+$('btn-buy-credits').onclick = () => {
+  const amount = prompt("Enter amount of credits to purchase:");
+  if (!amount) return;
+  alert(`Redirecting to Stripe checkout for ${amount} credits...`);
+  // In real prod: window.location.href = `/api/v1/billing/stripe-checkout?amount=${amount}&token=${TOKEN}`;
+};
+
 async function loadBilling() {
   try {
     const [rp, rk] = await Promise.all([apiFetch('/billing/plans'), apiFetch('/billing/packs')]);
@@ -623,6 +652,15 @@ function initVisualEditor() {
   ReviewerNode.title = "Reviewer Agent";
   LiteGraph.registerNodeType("nexus/reviewer", ReviewerNode);
 
+  // Data Analyst Node
+  function DataAnalystNode() {
+    this.addInput("data", "string");
+    this.addOutput("analysis", "string");
+    this.properties = { goal: "Identify trends and propose visualizations" };
+  }
+  DataAnalystNode.title = "Data Analyst Agent";
+  LiteGraph.registerNodeType("nexus/analyst", DataAnalystNode);
+
   visualGraph.start();
 }
 
@@ -632,7 +670,8 @@ $('btn-visual-run').onclick = async () => {
     id: n.id,
     type: n.type.split('/')[1], // nexus/llm -> llm
     provider: n.properties?.provider || 'groq',
-    model: n.properties?.model || 'llama-3.3-70b-versatile'
+    model: n.properties?.model || 'llama-3.3-70b-versatile',
+    goal: n.properties?.goal || '' // For Data Analyst
   }));
   
   const input = prompt("Enter initial input for graph:");
@@ -710,6 +749,14 @@ function initApp() {
 $('btn-login').onclick = doLogin;
 $('btn-logout').onclick = doLogout;
 $('menu-toggle').onclick = () => $('sidebar').classList.toggle('collapsed');
+
+// Social Login Wiring
+document.querySelectorAll('.btn-social').forEach(btn => {
+  btn.onclick = () => {
+    const provider = btn.dataset.provider;
+    doSocialLogin(provider);
+  };
+});
 
 document.querySelectorAll('.nav-item').forEach(i => i.onclick = () => activateTab(i.dataset.tab));
 
