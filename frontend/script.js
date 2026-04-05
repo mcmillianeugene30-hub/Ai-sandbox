@@ -169,6 +169,11 @@ function activateTab(name) {
     p.classList.toggle('active', id === name);
   });
   
+  // Close sidebar on mobile after selection
+  if (window.innerWidth <= 768) {
+    $('sidebar').classList.add('collapsed');
+  }
+
   if (name === 'overview') loadOverview();
   if (name === 'users') loadUsers();
   if (name === 'logs') loadLogs();
@@ -177,6 +182,7 @@ function activateTab(name) {
   if (name === 'models') loadModelRegistry();
   if (name === 'singularity') loadSingularityStatus();
   if (name === 'judge') { /* no-op */ }
+  if (name === 'automator') { /* no-op */ }
   if (name === 'sandbox') { 
     setTimeout(() => { if (monacoEditor) monacoEditor.layout(); }, 50);
     loadWorkspaces(); 
@@ -322,6 +328,83 @@ async function loadBilling() {
         </tr>`).join('');
     }
   } catch {}
+}
+
+// --- MAGIC AUTOMATOR ---
+const MAGIC_STEPS = {
+  architect: "Architecting Tech Stack...",
+  devops: "Configuring Cloud Infrastructure...",
+  planner: "Decomposing Goals...",
+  hive: "Multi-Model Hive Consensus...",
+  coder: "Generating Source Code...",
+};
+
+$('btn-magic-build').onclick = async () => {
+  const promptText = $('magic-prompt').value.trim();
+  if (!promptText) return alert("Please enter a build prompt.");
+
+  // UI Setup
+  $('magic-progress-wrap').style.display = 'block';
+  $('magic-steps').innerHTML = '';
+  clearTerminal('magic-terminal', 'Establishing Nexus uplink...');
+  $('magic-status-text').textContent = "AUTONOMOUS BUILD IN PROGRESS";
+  
+  const stepEls = {};
+  Object.keys(MAGIC_STEPS).forEach(key => {
+    const div = document.createElement('div');
+    div.className = 'flex-row';
+    div.innerHTML = `<span class="dot dot-amber"></span><span style="color:var(--text2)">${MAGIC_STEPS[key]}</span>`;
+    $('magic-steps').appendChild(div);
+    stepEls[key] = div;
+  });
+
+  const url = `${API_ROOT}/nexus/app-build?task=${encodeURIComponent(promptText)}&token=${encodeURIComponent(TOKEN)}`;
+  const es = new EventSource(url);
+
+  es.onmessage = (e) => {
+    const d = JSON.parse(e.data);
+    
+    if (d.type === 'agent_start') {
+      const el = stepEls[d.agent];
+      if (el) {
+        el.querySelector('.dot').className = 'dot dot-green';
+        el.style.color = 'var(--neon)';
+      }
+      appendTerminal('magic-terminal', `[${d.agent.toUpperCase()}] Initiated.`, 't-info');
+    } else if (d.type === 'log') {
+      appendTerminal('magic-terminal', d.message, 't-ok');
+    } else if (d.type === 'complete') {
+      es.close();
+      $('magic-status-text').textContent = "BUILD SUCCESSFUL";
+      appendTerminal('magic-terminal', "✅ Full-stack project generated successfully!", 't-ok');
+      
+      if ($('magic-deploy').checked) {
+        triggerAutoDeployFromMagic();
+      }
+    } else if (d.type === 'error') {
+      es.close();
+      $('magic-status-text').textContent = "BUILD FAILED";
+      $('magic-status-text').style.color = 'var(--red)';
+      appendTerminal('magic-terminal', `❌ ERROR: ${d.message}`, 't-err');
+    }
+  };
+
+  es.onerror = () => {
+    es.close();
+    appendTerminal('magic-terminal', "⚠ Connection lost. Build may still be running on server.", 't-warn');
+  };
+};
+
+async function triggerAutoDeployFromMagic() {
+  appendTerminal('magic-terminal', "🚀 Initiating Auto-Deploy to Cloud...", 't-info');
+  const r = await apiFetch('/autodeploy/trigger', { method: 'POST' });
+  if (r.ok) {
+    const d = await r.json();
+    d.logs.forEach(l => appendTerminal('magic-terminal', l, 't-ok'));
+    appendTerminal('magic-terminal', "✅ Deployment pipeline triggered.", 't-ok');
+  } else {
+    appendTerminal('magic-terminal', "❌ Deployment failed.", 't-err');
+  }
 }
 
 // --- JUDGE ---
@@ -572,11 +655,13 @@ $('btn-sb-run').addEventListener('click', async () => {
 function initApp() {
   loadMe();
   initMonaco();
-  activateTab('sandbox');
+  activateTab('automator');
 }
 
 $('btn-login').onclick = doLogin;
 $('btn-logout').onclick = doLogout;
+$('menu-toggle').onclick = () => $('sidebar').classList.toggle('collapsed');
+
 document.querySelectorAll('.nav-item').forEach(i => i.onclick = () => activateTab(i.dataset.tab));
 
 if (TOKEN) {

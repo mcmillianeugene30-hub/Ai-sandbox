@@ -44,7 +44,10 @@
 <div id="app" style="display:none">
   <!-- HEADER -->
   <div id="header">
-    <div class="logo">NEXUS<span>v9.0</span></div>
+    <div class="logo">
+      <span id="menu-toggle">☰</span>
+      NEXUS<span>v9.0</span>
+    </div>
     <div id="header-right">
       <span id="badge-admin" style="display:none">[ADMIN]</span>
       <span id="credit-display" style="display:none">⚡ <span id="credit-val">—</span> cr</span>
@@ -55,8 +58,12 @@
   <!-- BODY -->
   <div id="main">
     <!-- SIDEBAR -->
-    <nav id="sidebar">
-      <div class="nav-item active" data-tab="sandbox"><span class="icon">🔬</span>SANDBOX</div>
+    <nav id="sidebar" class="collapsed">
+      <div class="nav-item active" data-tab="automator" style="background:rgba(255,170,0,.1); color:var(--amber); border-left-color:var(--amber);">
+        <span class="icon">🪄</span><span>AUTOMATOR</span>
+      </div>
+      <div class="nav-sep"></div>
+      <div class="nav-item" data-tab="sandbox"><span class="icon">🔬</span><span>SANDBOX</span></div>
       <div class="nav-item" data-tab="overview"><span class="icon">📊</span>OVERVIEW</div>
       <div class="nav-item" data-tab="users"><span class="icon">👤</span>USERS</div>
       <div class="nav-item" data-tab="logs"><span class="icon">📋</span>LOGS</div>
@@ -74,8 +81,47 @@
     <!-- CONTENT -->
     <div id="content">
 
+      <!-- ══ MAGIC AUTOMATOR ══ -->
+      <div id="tab-automator" class="tab-pane active">
+        <div style="text-align:center; margin-top:40px; margin-bottom:40px;">
+          <h1 style="font-family:var(--font-head); font-size:36px; color:var(--amber); letter-spacing:4px;">NEXUS MAGIC AUTOMATOR</h1>
+          <p class="t-dim" style="font-family:var(--font-mono); font-size:12px;">ONE PROMPT. ONE FULL-STACK APP. ZERO FRICTION.</p>
+        </div>
+
+        <div class="card" style="max-width:800px; margin:0 auto; padding:30px;">
+          <div class="lbl">What do you want to build?</div>
+          <textarea id="magic-prompt" class="inp" style="height:120px; font-size:16px; margin-bottom:20px;" placeholder="e.g. Build a real-time crypto portfolio tracker with a FastAPI backend and a React dashboard..."></textarea>
+          
+          <div class="flex-between">
+            <div class="toggle-wrap">
+              <label class="toggle"><input type="checkbox" id="magic-deploy" checked><span class="toggle-slider"></span></label>
+              AUTO-DEPLOY TO CLOUD
+            </div>
+            <button id="btn-magic-build" class="btn btn-amber" style="padding:15px 40px; font-size:16px;">✨ BUILD MY EMPIRE</button>
+          </div>
+        </div>
+
+        <!-- Progress Overlay (Hidden initially) -->
+        <div id="magic-progress-wrap" style="display:none; max-width:800px; margin:30px auto;">
+          <div class="card">
+            <div class="flex-between" style="margin-bottom:15px;">
+              <div class="card-title" id="magic-status-text">INITIATING NEXUS PROTOCOL...</div>
+              <div class="spin" style="color:var(--amber)">⚙</div>
+            </div>
+            
+            <div id="magic-steps" style="display:flex; flex-direction:column; gap:10px;">
+              <!-- Steps will be injected here -->
+            </div>
+          </div>
+          
+          <div id="magic-terminal" class="terminal mt12" style="height:200px;">
+            <span class="t-dim">// Awaiting sequence start...</span>
+          </div>
+        </div>
+      </div>
+
       <!-- ══ SANDBOX ══ -->
-      <div id="tab-sandbox" class="tab-pane active">
+      <div id="tab-sandbox" class="tab-pane">
         <div class="flex-between">
           <div style="font-family:var(--font-head);font-size:18px;font-weight:700;letter-spacing:1px;color:var(--neon)">🔬 PROJECT NEXUS v9.0 SANDBOX</div>
           <div class="flex-row">

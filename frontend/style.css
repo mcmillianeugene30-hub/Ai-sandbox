@@ -59,6 +59,14 @@ body::after{
   letter-spacing:2px;
   background:linear-gradient(90deg,var(--neon),var(--cyan));
   -webkit-background-clip:text;-webkit-text-fill-color:transparent;
+  display:flex; align-items:center; gap:10px;
+}
+#menu-toggle{ display:none; font-size:20px; color:var(--neon); cursor:pointer; }
+@media (max-width: 768px) {
+  #menu-toggle{ display:block; }
+  #sidebar.collapsed { width: 0; padding: 0; overflow: hidden; border: none; }
+  #sidebar { position: absolute; left: 0; top: var(--header); bottom: 0; z-index: 1000; width: 240px; transition: 0.3s; }
+  .nav-item span:not(.icon) { display: inline !important; } /* Show text in expanded mobile menu */
 }
 #header .logo span{color:var(--amber);-webkit-text-fill-color:var(--amber);font-size:13px;vertical-align:super;margin-left:4px}
 #header-right{display:flex;align-items:center;gap:12px}
@@ -323,4 +331,53 @@ td .badge{
 @keyframes spin{to{transform:rotate(360deg)}}
 .glow-neon{text-shadow:0 0 8px var(--neon)}
 .glow-cyan{text-shadow:0 0 8px var(--cyan)}
-#tab-sandbox .tab-pane{padding:16px}
+/* ═══════════════════════════════════════════════
+   MOBILE OPTIMIZATION & RESPONSIVENESS
+   ═══════════════════════════════════════════════ */
+@media (max-width: 768px) {
+  :root {
+    --sidebar: 60px; /* Collapse sidebar to icons */
+  }
+  .nav-item {
+    justify-content: center;
+    padding: 12px 0;
+  }
+  .nav-item span:not(.icon) {
+    display: none; /* Hide labels, show only icons */
+  }
+  .logo span {
+    display: none;
+  }
+  .row {
+    flex-direction: column;
+  }
+  .col {
+    width: 100%;
+  }
+  .sandbox-layout {
+    flex-direction: column;
+  }
+  .sandbox-right {
+    width: 100%;
+  }
+  .kpi-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+  #login-box {
+    width: 90%;
+    padding: 20px;
+  }
+}
+
+@media (max-width: 480px) {
+  .kpi-grid {
+    grid-template-columns: 1fr;
+  }
+  .header {
+    padding: 0 10px;
+  }
+  .btn {
+    padding: 6px 10px;
+    font-size: 10px;
+  }
+}
