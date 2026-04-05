@@ -1,4 +1,5 @@
 services:
+  # 1. The Backend (Python FastAPI)
   - type: web
     name: nexus-backend
     runtime: python
@@ -9,8 +10,6 @@ services:
     envVars:
       - key: PYTHONPATH
         value: /opt/render/project/src/backend:/opt/render/project/src
-      - key: PYTHON_VERSION
-        value: 3.11.0
       - key: NEXUS_OS_PATH
         value: /opt/render/project/src/nexus-ai-os
       - key: RENDER_DISK_PATH
@@ -27,15 +26,17 @@ services:
         sync: false
       - key: TOKEN_EXP_MINUTES
         value: "600"
-      - key: FRONTEND_URL
-        sync: false
-      - key: RENDER_SERVICE_URL
-        sync: false
-      - key: RENDER_API_KEY
-        sync: false
-      - key: RENDER_SERVICE_ID
-        sync: false
-    # disk:
-    #   name: nexus-data
-    #   mountPath: /opt/render/project/src/backend/data
-    #   sizeGB: 1
+
+  # 2. The Frontend (Static Dashboard)
+  - type: static
+    name: nexus-dashboard
+    runtime: static
+    region: oregon
+    buildCommand: ./build-frontend.sh
+    staticPublishPath: frontend
+    envVars:
+      - key: VITE_API_URL
+        fromService:
+          type: web
+          name: nexus-backend
+          property: host
