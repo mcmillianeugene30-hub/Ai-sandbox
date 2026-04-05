@@ -555,6 +555,60 @@ async def create_workspace(name: str, user: Dict = Depends(get_user)):
     return {"status": "created"}
 
 
+# ═══════════════════════════════════════════════════════════════════════════════
+# JUDGE  —  /api/v1/judge
+# ═══════════════════════════════════════════════════════════════════════════════
+
+@app.post("/api/v1/judge", tags=["Chat"])
+async def run_judge(req: JudgeRequest, user: Dict = Depends(get_user)):
+    """LLM-as-a-Judge pairwise evaluation."""
+    require_credits(user["id"], 2.0, "LLM Judge evaluation")
+    
+    prompt = f"""You are an impartial judge evaluating two AI responses.
+    
+    Original Prompt: {req.prompt}
+    
+    Response A: {req.res_a}
+    Response B: {req.res_b}
+    
+    Rubric: {req.rubric}
+    
+    Output your verdict in JSON:
+    {{
+      "winner": "A" | "B" | "TIE",
+      "score_a": 0-10,
+      "score_b": 0-10,
+      "reasoning": "..."
+    }}
+    """
+    
+    # Use a high-quality model for judging
+    provider = providers.get_provider("groq")
+    api_key = os.environ.get("GROQ_API_KEY", "")
+    res = provider.chat_complete("llama-3.3-70b-versatile", [{"role": "user", "content": prompt}], api_key)
+    
+    content = res["choices"][0]["message"]["content"]
+    verdict = kernel.extract_json(content)
+    
+    log_usage(user["id"], "judge", "llama-3.3-70b", 0, "ok", req.prompt, content)
+    return verdict
+
+
+# ═══════════════════════════════════════════════════════════════════════════════
+# ORCHESTRATOR  —  /api/v1/orchestrator/run
+# ═══════════════════════════════════════════════════════════════════════════════
+
+@app.post("/api/v1/orchestrator/run", tags=["Nexus Agents"])
+async def run_orchestrator(req: OrchestratorRequest, user: Dict = Depends(get_user)):
+    """Run a visual graph/chain of agents."""
+    require_credits(user["id"], float(len(req.chain)), "Orchestrator graph run")
+    
+    from orchestrator import orchestrator
+    env_key = os.environ.get("GROQ_API_KEY", "")
+    results = await orchestrator.execute_chain(req.chain, req.input, api_key=env_key)
+    return {"results": results}
+
+
 @app.get("/health", tags=["Meta"])
 async def health():
     return {

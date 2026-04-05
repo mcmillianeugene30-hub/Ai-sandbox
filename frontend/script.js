@@ -176,6 +176,7 @@ function activateTab(name) {
   if (name === 'swarm') loadSwarmNodes();
   if (name === 'models') loadModelRegistry();
   if (name === 'singularity') loadSingularityStatus();
+  if (name === 'judge') { /* no-op */ }
   if (name === 'sandbox') { 
     setTimeout(() => { if (monacoEditor) monacoEditor.layout(); }, 50);
     loadWorkspaces(); 
@@ -323,6 +324,29 @@ async function loadBilling() {
   } catch {}
 }
 
+// --- JUDGE ---
+$('btn-run-judge').onclick = async () => {
+  const prompt = $('judge-prompt').value;
+  const res_a = $('judge-res-a').value;
+  const res_b = $('judge-res-b').value;
+  if (!prompt || !res_a || !res_b) return alert("Fill all judge fields.");
+  
+  clearTerminal('judge-output', 'Judging in progress...');
+  const r = await apiFetch('/judge', {
+    method: 'POST',
+    body: JSON.stringify({ prompt, res_a, res_b })
+  });
+  if (r.ok) {
+    const verdict = await r.json();
+    clearTerminal('judge-output');
+    appendTerminal('judge-output', `WINNER: ${verdict.winner}`, 't-ok');
+    appendTerminal('judge-output', `Score A: ${verdict.score_a} | Score B: ${verdict.score_b}`, 't-info');
+    appendTerminal('judge-output', `Reasoning: ${verdict.reasoning}`, 't-dim');
+  } else {
+    appendTerminal('judge-output', 'Error running judge.', 't-err');
+  }
+};
+
 // --- SWARM ---
 async function loadSwarmNodes() {
   try {
@@ -443,8 +467,62 @@ function initVisualEditor() {
   LLMNode.title = "LLM Engine";
   LiteGraph.registerNodeType("nexus/llm", LLMNode);
 
+  // Researcher Node
+  function ResearcherNode() {
+    this.addInput("query", "string");
+    this.addOutput("findings", "string");
+  }
+  ResearcherNode.title = "Researcher Agent";
+  LiteGraph.registerNodeType("nexus/researcher", ResearcherNode);
+
+  // Coder Node
+  function CoderNode() {
+    this.addInput("task", "string");
+    this.addOutput("code", "string");
+  }
+  CoderNode.title = "Coder Agent";
+  LiteGraph.registerNodeType("nexus/coder", CoderNode);
+
+  // Reviewer Node
+  function ReviewerNode() {
+    this.addInput("code", "string");
+    this.addOutput("audit", "string");
+  }
+  ReviewerNode.title = "Reviewer Agent";
+  LiteGraph.registerNodeType("nexus/reviewer", ReviewerNode);
+
   visualGraph.start();
 }
+
+$('btn-visual-run').onclick = async () => {
+  const data = visualGraph.serialize();
+  const nodes = data.nodes.map(n => ({
+    id: n.id,
+    type: n.type.split('/')[1], // nexus/llm -> llm
+    provider: n.properties?.provider || 'groq',
+    model: n.properties?.model || 'llama-3.3-70b-versatile'
+  }));
+  
+  const input = prompt("Enter initial input for graph:");
+  if (!input) return;
+  
+  clearTerminal('sb-console', 'Executing graph...');
+  const r = await apiFetch('/orchestrator/run', {
+    method: 'POST',
+    body: JSON.stringify({ chain: nodes, input })
+  });
+  
+  if (r.ok) {
+    const res = await r.json();
+    clearTerminal('sb-console');
+    res.results.forEach(step => {
+      appendTerminal('sb-console', `[NODE: ${step.node_id}] (${step.type})`, 't-info');
+      appendTerminal('sb-console', step.output || step.error, step.error ? 't-err' : 't-ok');
+    });
+  } else {
+    appendTerminal('sb-console', 'Graph execution failed.', 't-err');
+  }
+};
 
 $('sb-visual-toggle').addEventListener('change', e => {
   const visual = e.target.checked;

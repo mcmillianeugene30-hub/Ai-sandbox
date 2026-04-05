@@ -61,6 +61,7 @@
       <div class="nav-item" data-tab="users"><span class="icon">👤</span>USERS</div>
       <div class="nav-item" data-tab="logs"><span class="icon">📋</span>LOGS</div>
       <div class="nav-item" data-tab="billing"><span class="icon">💳</span>BILLING</div>
+      <div class="nav-item" data-tab="judge"><span class="icon">⚖️</span>JUDGE</div>
       <div class="nav-sep"></div>
       <div class="nav-item" data-tab="swarm"><span class="icon">🐝</span>SWARM</div>
       <div class="nav-item" data-tab="models"><span class="icon">🔍</span>MODELS</div>
@@ -121,8 +122,12 @@
               </div>
             </div>
             <div id="editor-wrap"></div>
-            <div id="visual-editor-wrap" style="display:none; flex:1; background:#000; border:1px solid var(--border); border-radius:4px; position:relative;">
-              <canvas id="visual-canvas" width="800" height="400" style="width:100%; height:100%;"></canvas>
+            <div id="visual-editor-wrap" style="display:none; flex:1; background:#000; border:1px solid var(--border); border-radius:4px; position:relative; flex-direction:column;">
+              <div class="flex-row" style="padding:5px; background:var(--bg4); border-bottom:1px solid var(--border);">
+                <button id="btn-visual-run" class="btn btn-neon btn-sm">▶ RUN GRAPH</button>
+                <span class="t-dim" style="font-size:10px;">Right-click to add nodes</span>
+              </div>
+              <canvas id="visual-canvas" width="800" height="400" style="width:100%; flex:1;"></canvas>
             </div>
           </div>
           <div class="sandbox-right">
@@ -173,6 +178,35 @@
       <div id="tab-users" class="tab-pane"><div class="card"><div class="tbl-wrap"><table><thead><tr><th>ID</th><th>User</th><th>Email</th><th>Plan</th><th>Credits</th><th>Expires</th><th>Actions</th></tr></thead><tbody id="users-tbl"></tbody></table></div></div></div>
       <div id="tab-logs" class="tab-pane"><div class="card"><div class="tbl-wrap"><table><thead><tr><th>★</th><th>ID</th><th>User</th><th>Model</th><th>Tokens</th><th>Cost</th><th>Time</th><th>Status</th></tr></thead><tbody id="logs-tbl"></tbody></table></div></div></div>
       <div id="tab-billing" class="tab-pane"><div class="row"><div class="col card"><div class="card-title">Plans</div><div class="tbl-wrap"><table><thead><tr><th>Plan</th><th>Price</th><th>Credits</th><th>Models</th></tr></thead><tbody id="billing-plans-tbl"></tbody></table></div></div></div></div>
+      
+      <!-- ══ JUDGE ══ -->
+      <div id="tab-judge" class="tab-pane">
+        <div style="font-family:var(--font-head);font-size:18px;font-weight:700;color:var(--cyan)">⚖️ LLM-AS-A-JUDGE EVALUATOR</div>
+        <div class="card">
+          <div class="lbl">Prompt to Evaluate</div>
+          <textarea id="judge-prompt" class="inp" style="height:60px; margin-bottom:10px;" placeholder="Original user prompt..."></textarea>
+          <div class="row">
+            <div class="col">
+              <div class="lbl">Response A</div>
+              <textarea id="judge-res-a" class="inp" style="height:120px;" placeholder="AI output A..."></textarea>
+            </div>
+            <div class="col">
+              <div class="lbl">Response B</div>
+              <textarea id="judge-res-b" class="inp" style="height:120px;" placeholder="AI output B..."></textarea>
+            </div>
+          </div>
+          <div class="flex-row mt12">
+            <button id="btn-run-judge" class="btn btn-cyan">⚖️ EVALUATE RESPONSES</button>
+          </div>
+        </div>
+        <div class="card" style="flex:1; display:flex; flex-direction:column">
+          <div class="card-title">Verdict</div>
+          <div id="judge-output" class="terminal" style="flex:1; max-height:unset">
+            <span class="t-dim">// Waiting for input...</span>
+          </div>
+        </div>
+      </div>
+
       <div id="tab-swarm" class="tab-pane"><div class="card"><div class="row"><input id="swarm-goal" class="inp" placeholder="Goal..."/><select id="swarm-nodes" class="inp"><option>3</option><option>5</option></select><button id="btn-swarm-activate" class="btn btn-amber">ACTIVATE</button></div></div><div id="swarm-node-grid" class="node-grid"></div><div id="swarm-log" class="terminal"></div><div id="swarm-consensus" class="terminal"></div></div>
       <div id="tab-models" class="tab-pane"><button id="btn-scan-models" class="btn btn-purple">SCAN</button><div id="models-disc-log" class="terminal"></div><div class="tbl-wrap"><table><thead><tr><th>Prov</th><th>Model</th><th>Context</th><th>Status</th></tr></thead><tbody id="models-registry-tbl"></tbody></table></div></div>
       <div id="tab-deploy" class="tab-pane"><button id="btn-deploy-trigger" class="btn btn-neon">DEPLOY</button><div id="deploy-status-badge"></div><div id="deploy-log" class="terminal"></div></div>
