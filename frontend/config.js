@@ -5,11 +5,11 @@
 // For local dev, create a .env file:  VITE_API_URL=http://localhost:8000
 
 const API_BASE = (
-  window.__NEXUS_API_URL__ ||           // runtime injection
-  "https://nexus-backend-ffn4.onrender.com"  // fallback
+  window.__NEXUS_API_URL__ || 
+  (window.location.hostname.includes('vercel.app') ? '' : 'https://nexus-backend-ffn4.onrender.com')
 );
 
-window.NEXUS_API = API_BASE.replace(/\/$/, '') + "/api/v1";
+window.NEXUS_API = (API_BASE.replace(/\/$/, '') || '') + "/api/v1";
 window.STRIPE_PUBLIC_KEY = ""; // Set in Vercel Env
 window.GITHUB_CLIENT_ID = "";  // Set in Vercel Env
 window.GOOGLE_CLIENT_ID = "";  // Set in Vercel Env

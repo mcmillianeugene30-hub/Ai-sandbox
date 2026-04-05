@@ -19,10 +19,12 @@ class RAGManager:
             return
 
         try:
+            # Vercel Serverless (Read-only FS fallback to /tmp)
+            if os.environ.get("VERCEL") == "1":
+                persist_directory = "/tmp/nexus_chroma"
             # Use Render persistent disk path if available
-            render_disk = os.environ.get("RENDER_DISK_PATH")
-            if render_disk:
-                persist_directory = os.path.join(render_disk, "chroma_db")
+            elif os.environ.get("RENDER_DISK_PATH"):
+                persist_directory = os.path.join(os.environ.get("RENDER_DISK_PATH"), "chroma_db")
             else:
                 persist_directory = os.path.join(
                     os.path.dirname(os.path.abspath(__file__)),

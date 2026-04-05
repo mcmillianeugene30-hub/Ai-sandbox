@@ -150,20 +150,27 @@ PROVIDER_ENV_KEYS: Dict[str, str] = {
 }
 
 # ─── PERSISTENT STORAGE ───────────────────────────────────────────────────────
-DATA_DIR    = os.environ.get(
-    "RENDER_DISK_PATH",
-    os.path.join(BACKEND_DIR, "data"),
-)
+IS_VERCEL = os.environ.get("VERCEL") == "1"
+
+if IS_VERCEL:
+    DATA_DIR   = "/tmp/nexus_data"
+    CHROMA_DIR = "/tmp/nexus_chroma"
+else:
+    DATA_DIR    = os.environ.get(
+        "RENDER_DISK_PATH",
+        os.path.join(BACKEND_DIR, "data"),
+    )
+    CHROMA_DIR  = os.environ.get(
+        "CHROMA_DB_PATH",
+        os.path.join(BACKEND_DIR, "chroma_db"),
+    )
+
 UPLOADS_DIR = os.path.join(DATA_DIR, "uploads")
-CHROMA_DIR  = os.environ.get(
-    "CHROMA_DB_PATH",
-    os.path.join(BACKEND_DIR, "chroma_db"),
-)
 DB_PATH = os.path.join(DATA_DIR, "usage.db")
 
 os.makedirs(DATA_DIR,    exist_ok=True)
-os.makedirs(UPLOADS_DIR, exist_ok=True)
 os.makedirs(CHROMA_DIR,  exist_ok=True)
+os.makedirs(UPLOADS_DIR, exist_ok=True)
 
 # ─── DATABASE SETUP ───────────────────────────────────────────────────────────
 def get_conn() -> sqlite3.Connection:

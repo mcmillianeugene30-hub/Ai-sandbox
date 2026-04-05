@@ -1,32 +1,32 @@
 {
   "version": 2,
-  "name": "nexus-ai-os",
-  "buildCommand": "./build-frontend.sh",
-  "outputDirectory": "frontend",
-  "routes": [
+  "name": "nexus-fullstack-empire",
+  "builds": [
     {
-      "src": "/dashboard",
-      "dest": "/index.html"
+      "src": "api/index.py",
+      "use": "@vercel/python"
     },
     {
-      "src": "/admin",
-      "dest": "/index.html"
+      "src": "frontend/**",
+      "use": "@vercel/static"
+    }
+  ],
+  "rewrites": [
+    {
+      "source": "/api/(.*)",
+      "destination": "/api/index.py"
     },
     {
-      "src": "/nexus",
-      "dest": "/index.html"
+      "source": "/pricing",
+      "destination": "/frontend/pricing.html"
     },
     {
-      "src": "/pricing",
-      "dest": "/pricing.html"
+      "source": "/(.*)",
+      "destination": "/frontend/$1"
     },
     {
-      "src": "/",
-      "dest": "/index.html"
-    },
-    {
-      "src": "/(.*)",
-      "dest": "/$1"
+      "source": "/",
+      "destination": "/frontend/index.html"
     }
   ],
   "headers": [
