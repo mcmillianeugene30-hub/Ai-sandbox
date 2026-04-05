@@ -295,9 +295,20 @@ For issues or questions:
 
 ---
 
-## Version Information
+## Project Nexus v10.1 'Empire' — Final Hardening
 
-- Backend Version: 8.0
-- API Title: Project Nexus API v7.1
-- Python: 3.11+
-- FastAPI: 0.104+
+### 1. Vercel Environment Pipeline
+**Problem:** Static frontend files cannot natively read Vercel environment variables at runtime.
+**Solution:** Implemented a build-time injection script (`build-frontend.sh`) that uses `sed` to bake variables like `VITE_API_URL` into `index.html` and `config.js` during the Vercel deployment process.
+
+### 2. Docker & Local Setup
+**Problem:** `docker-compose.yml` was using manual environment mapping and missing volume mounts for ChromaDB.
+**Solution:** Refactored `docker-compose.yml` to use `env_file: .env` and added persistent volume mounts for all data directories. Updated `nginx.conf` with `proxy_http_version 1.1` and `Connection ''` for high-stability SSE streaming.
+
+### 3. Agentic Graph Support
+**Problem:** The `AgentOrchestrator` only supported basic LLM nodes.
+**Solution:** Fully integrated the **DataAnalystAgent** into the orchestrator and the frontend visual editor. The system now supports multi-agent chains involving Research -> Analysis -> Coding.
+
+### 4. 404 Routing Fix
+**Problem:** Vercel routes were incorrectly pointing to `/frontend/index.html` when `outputDirectory` was already set to `frontend`.
+**Solution:** Corrected `vercel.json` destinations to be relative to the output root, resolving the deployment 404 errors.
