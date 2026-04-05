@@ -14,6 +14,7 @@ let isRefreshing = false;
 let refreshSubscribers = [];
 let visualGraph = null;
 let visualCanvas = null;
+let currentWsId = null;
 
 /* ═══════════════════════════════════════════════════════════
    UTILITIES
@@ -199,11 +200,59 @@ async function loadWorkspaces() {
     const r = await apiFetch('/workspaces');
     if (r.ok) {
       const data = await r.json();
-      // Logic to update a workspace dropdown if it existed
-      console.log("Workspaces loaded:", data);
+      const sel = $('sb-workspace');
+      sel.innerHTML = data.map(w => `<option value="${w.id}">${esc(w.name)}</option>`).join('');
+      if (data.length > 0 && !currentWsId) {
+        currentWsId = data[0].id;
+        loadWorkspace(currentWsId);
+      }
     }
   } catch {}
 }
+
+async function loadWorkspace(id) {
+  try {
+    const r = await apiFetch(`/workspaces/${id}`);
+    if (r.ok) {
+      const w = await r.json();
+      currentWsId = w.id;
+      if (w.config) {
+        const cfg = JSON.parse(w.config);
+        if (cfg.code && monacoEditor) monacoEditor.setValue(cfg.code);
+        if (cfg.graph && visualGraph) visualGraph.configure(cfg.graph);
+      }
+    }
+  } catch {}
+}
+
+$('sb-workspace').onchange = (e) => loadWorkspace(e.target.value);
+
+$('btn-ws-add').onclick = async () => {
+  const name = prompt("Enter project name:");
+  if (!name) return;
+  const r = await apiFetch(`/workspaces?name=${encodeURIComponent(name)}`, { method: 'POST' });
+  if (r.ok) loadWorkspaces();
+};
+
+$('btn-sb-save').onclick = async () => {
+  if (!currentWsId) return alert("Select a workspace first.");
+  const config = JSON.stringify({
+    code: monacoEditor ? monacoEditor.getValue() : '',
+    graph: visualGraph ? visualGraph.serialize() : null
+  });
+  const fd = new URLSearchParams();
+  fd.append('config', config);
+  const r = await apiFetch(`/workspaces/${currentWsId}`, {
+    method: 'PUT',
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+    body: fd.toString()
+  });
+  if (r.ok) {
+    appendTerminal('sb-console', `✅ Workspace saved.`, 't-ok');
+  } else {
+    appendTerminal('sb-console', `❌ Save failed.`, 't-err');
+  }
+};
 
 // --- SETTINGS ---
 async function updatePassword() {

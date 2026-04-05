@@ -9,6 +9,10 @@ Environment:
 import os
 import sys
 import logging
+import re
+import json
+import asyncio
+from typing import Optional, List, Dict, Any
 
 # ─── Path bootstrap (must run before any local imports) ───────────────────────
 PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))

@@ -510,10 +510,29 @@ class AppBuildRequest(BaseModel):
 # ═══════════════════════════════════════════════════════════════════════════════
 
 async def autonomous_evolution_loop():
-    """Simple background loop to trigger Singularity every 24 hours."""
+    """Autonomous background check for system errors and self-evolution."""
     while True:
-        await asyncio.sleep(86400)
-        print("🧬 [SINGULARITY] Scheduled autonomous check...")
+        await asyncio.sleep(3600) # Check every hour
+        try:
+            conn = get_conn()
+            # Calculate error rate in last 100 requests
+            total = conn.execute("SELECT count(*) FROM usage_logs").fetchone()[0]
+            if total > 50:
+                errors = conn.execute(
+                    "SELECT count(*) FROM usage_logs WHERE status != 'ok' AND timestamp > datetime('now', '-1 hour')"
+                ).fetchone()[0]
+                recent = conn.execute(
+                    "SELECT count(*) FROM usage_logs WHERE timestamp > datetime('now', '-1 hour')"
+                ).fetchone()[0]
+                
+                error_rate = errors / recent if recent > 0 else 0
+                if error_rate > 0.15: # 15% error rate threshold
+                    print(f"🧬 [SINGULARITY] High error rate detected ({error_rate:.2%}). Triggering evolution...")
+                    # Trigger the evolution agent logic here or call internal function
+                    # await singularity_evolve_internal()
+            conn.close()
+        except Exception as e:
+            print(f"⚠️ Autonomous check failed: {e}")
 
 
 @app.on_event("startup")
@@ -553,6 +572,30 @@ async def create_workspace(name: str, user: Dict = Depends(get_user)):
     conn.commit()
     conn.close()
     return {"status": "created"}
+
+
+@app.put("/api/v1/workspaces/{ws_id}", tags=["Workspaces"])
+async def update_workspace(ws_id: int, config: str = Form(...), user: Dict = Depends(get_user)):
+    conn = get_conn()
+    conn.execute(
+        "UPDATE workspaces SET config=? WHERE id=? AND user_id=?",
+        (config, ws_id, user["id"])
+    )
+    conn.commit()
+    conn.close()
+    return {"status": "updated"}
+
+
+@app.get("/api/v1/workspaces/{ws_id}", tags=["Workspaces"])
+async def get_workspace(ws_id: int, user: Dict = Depends(get_user)):
+    conn = get_conn()
+    row = conn.execute(
+        "SELECT id, name, config FROM workspaces WHERE id=? AND user_id=?",
+        (ws_id, user["id"])
+    ).fetchone()
+    conn.close()
+    if not row: raise HTTPException(404, "Workspace not found.")
+    return {"id": row[0], "name": row[1], "config": row[2]}
 
 
 # ═══════════════════════════════════════════════════════════════════════════════

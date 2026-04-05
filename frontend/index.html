@@ -36,6 +36,18 @@
       <input id="inp-pass" class="inp" type="password" placeholder="••••••••" autocomplete="current-password"/>
     </div>
     <button id="btn-login">LOGIN →</button>
+    
+    <div class="nav-sep" style="margin:20px 0"></div>
+    
+    <div style="display:flex; flex-direction:column; gap:10px;">
+      <button class="btn btn-sm" style="background:#24292e; color:white; width:100%; justify-content:center;">
+        <span class="icon">🐙</span> Continue with GitHub
+      </button>
+      <button class="btn btn-sm" style="background:white; color:#444; width:100%; justify-content:center;">
+        <span class="icon">🔍</span> Continue with Google
+      </button>
+    </div>
+    
     <div id="login-err"></div>
   </div>
 </div>
@@ -74,6 +86,7 @@
       <div class="nav-item" data-tab="models"><span class="icon">🔍</span>MODELS</div>
       <div class="nav-item" data-tab="deploy"><span class="icon">🚀</span>DEPLOY</div>
       <div class="nav-item" data-tab="singularity"><span class="icon">🧬</span>SINGULARITY</div>
+      <div class="nav-item" data-tab="marketplace"><span class="icon">🛒</span>MARKETPLACE</div>
       <div class="nav-sep"></div>
       <div class="nav-item" data-tab="terminal"><span class="icon">⚡</span>TERMINAL</div>
     </nav>
@@ -138,6 +151,15 @@
         </div>
 
         <div class="sandbox-controls card">
+          <div class="col" style="max-width:180px">
+            <div class="lbl">Active Workspace</div>
+            <div class="flex-row">
+              <select id="sb-workspace" class="inp">
+                <option value="default">Default Project</option>
+              </select>
+              <button id="btn-ws-add" class="btn btn-cyan btn-sm">+</button>
+            </div>
+          </div>
           <div class="col" style="max-width:150px">
             <div class="lbl">Provider</div>
             <select id="sb-provider" class="inp">
@@ -153,6 +175,9 @@
           </div>
           <div style="align-self:flex-end">
             <button id="btn-sb-run" class="btn btn-neon">▶ RUN CODE</button>
+          </div>
+          <div style="align-self:flex-end">
+            <button id="btn-sb-save" class="btn btn-purple btn-sm">SAVE</button>
           </div>
           <div style="align-self:flex-end">
             <button id="btn-sb-clear" class="btn btn-cyan btn-sm">CLEAR</button>
@@ -255,8 +280,40 @@
 
       <div id="tab-swarm" class="tab-pane"><div class="card"><div class="row"><input id="swarm-goal" class="inp" placeholder="Goal..."/><select id="swarm-nodes" class="inp"><option>3</option><option>5</option></select><button id="btn-swarm-activate" class="btn btn-amber">ACTIVATE</button></div></div><div id="swarm-node-grid" class="node-grid"></div><div id="swarm-log" class="terminal"></div><div id="swarm-consensus" class="terminal"></div></div>
       <div id="tab-models" class="tab-pane"><button id="btn-scan-models" class="btn btn-purple">SCAN</button><div id="models-disc-log" class="terminal"></div><div class="tbl-wrap"><table><thead><tr><th>Prov</th><th>Model</th><th>Context</th><th>Status</th></tr></thead><tbody id="models-registry-tbl"></tbody></table></div></div>
-      <div id="tab-deploy" class="tab-pane"><button id="btn-deploy-trigger" class="btn btn-neon">DEPLOY</button><div id="deploy-status-badge"></div><div id="deploy-log" class="terminal"></div></div>
+      <div id="tab-deploy" class="tab-pane">
+        <div class="flex-row" style="margin-bottom:10px;">
+          <button id="btn-deploy-trigger" class="btn btn-neon">🚀 TRIGGER DEPLOY</button>
+          <button id="btn-export-docker" class="btn btn-purple btn-sm">📦 EXPORT DOCKER</button>
+        </div>
+        <div id="deploy-status-badge"></div>
+        <div id="deploy-log" class="terminal"></div>
+      </div>
       <div id="tab-singularity" class="tab-pane"><div class="kpi-grid"><div class="kpi"><div id="sing-error-rate" class="kpi-val"></div></div><div class="kpi"><div id="sing-evo-count" class="kpi-val"></div></div><div class="kpi"><div id="sing-status-kpi" class="kpi-val"></div></div></div><button id="btn-sing-evolve" class="btn btn-red">EVOLVE</button><div id="sing-log" class="terminal"></div></div>
+      <!-- ══ MARKETPLACE ══ -->
+      <div id="tab-marketplace" class="tab-pane">
+        <div style="font-family:var(--font-head);font-size:18px;font-weight:700;color:var(--neon)">🛒 AGENT MARKETPLACE</div>
+        <div class="card">
+          <div class="card-title">Community Agent Personas</div>
+          <div class="kpi-grid" style="grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));">
+            <div class="kpi" style="text-align:left;">
+              <div style="font-size:14px; color:var(--neon);">SQL Optimizer Agent</div>
+              <div class="lbl" style="margin-top:4px;">By: NexusCore</div>
+              <button class="btn btn-neon btn-sm mt8" style="width:100%;">INSTALL</button>
+            </div>
+            <div class="kpi" style="text-align:left;">
+              <div style="font-size:14px; color:var(--cyan);">Vue.js Architect</div>
+              <div class="lbl" style="margin-top:4px;">By: DevMaster</div>
+              <button class="btn btn-cyan btn-sm mt8" style="width:100%;">INSTALL</button>
+            </div>
+            <div class="kpi" style="text-align:left;">
+              <div style="font-size:14px; color:var(--amber);">Security Auditor</div>
+              <div class="lbl" style="margin-top:4px;">By: WhiteHat</div>
+              <button class="btn btn-amber btn-sm mt8" style="width:100%;">INSTALL</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
       <div id="tab-terminal" class="tab-pane"><input id="term-task" class="inp" placeholder="Build..."/><button id="btn-term-run" class="btn btn-amber">RUN</button><div id="term-status"></div><div id="term-output" class="terminal"></div></div>
 
     </div>
