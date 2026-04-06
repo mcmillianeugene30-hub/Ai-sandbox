@@ -23,11 +23,11 @@ COPY . /app
 # Create runtime directories
 RUN mkdir -p /app/nexus-ai-os/projects \
              /app/nexus-ai-os/memory_db \
-             /app/backend/uploads \
-             /app/backend/chroma_db
+             /app/ai_engine/uploads \
+             /app/ai_engine/chroma_db
 
-# Set working dir to backend (where uvicorn runs)
-WORKDIR /app/backend
+# Set working dir to ai_engine (where uvicorn runs)
+WORKDIR /app/ai_engine
 
 EXPOSE 8000
 
