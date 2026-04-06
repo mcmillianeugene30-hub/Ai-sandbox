@@ -87,3 +87,7 @@ htmlcov/
 
 # Node modules (if any)
 node_modules/
+encore.gen.go
+encore.gen.cue
+/.encore
+/encore.gen
