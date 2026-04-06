@@ -25,11 +25,11 @@ from slowapi.errors import RateLimitExceeded
 limiter = Limiter(key_func=get_remote_address)
 
 # ─── PYTHON PATH ─ resolve once at module level ────────────────────────────────
-PROJECT_ROOT  = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-BACKEND_DIR   = os.path.dirname(os.path.abspath(__file__))
-NEXUS_OS_PATH = os.environ.get("NEXUS_OS_PATH", os.path.join(PROJECT_ROOT, "nexus-ai-os"))
+PROJECT_ROOT  = os.path.dirname(os.path.abspath(__file__))
+BACKEND_DIR   = PROJECT_ROOT
+NEXUS_OS_PATH = PROJECT_ROOT
 
-for _p in (NEXUS_OS_PATH, BACKEND_DIR):
+for _p in (PROJECT_ROOT,):
     if _p not in sys.path:
         sys.path.insert(0, _p)
 

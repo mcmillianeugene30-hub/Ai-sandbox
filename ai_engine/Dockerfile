@@ -11,26 +11,24 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 # ── Stage 2: dependencies ──────────────────────────────────────────────────────
 FROM base AS deps
 
-COPY requirements.txt /app/requirements.txt
-RUN pip install --no-cache-dir -r /app/requirements.txt
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt
 
 # ── Stage 3: final ─────────────────────────────────────────────────────────────
 FROM deps AS final
 
-# Copy all source code
-COPY . /app
+# Copy all source code (from ai_engine context)
+COPY . .
 
 # Create runtime directories
-RUN mkdir -p /app/nexus-ai-os/projects \
-             /app/nexus-ai-os/memory_db \
-             /app/ai_engine/uploads \
-             /app/ai_engine/chroma_db
-
-# Set working dir to ai_engine (where uvicorn runs)
-WORKDIR /app/ai_engine
+RUN mkdir -p projects \
+             memory_db \
+             uploads \
+             chroma_db
 
 EXPOSE 8000
 
 ENV PYTHONPATH=/app
 
+# main:app refers to main.py in the root of the context
 CMD ["uvicorn", "main:app", "--host", "0.0.0.0", "--port", "8000", "--workers", "2"]

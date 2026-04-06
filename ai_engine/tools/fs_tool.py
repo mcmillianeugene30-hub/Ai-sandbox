@@ -1,8 +1,12 @@
 import os
 
 class FileSystemTool:
-    def __init__(self, base_path="/workspace"):
+    def __init__(self, base_path=None):
+        if base_path is None:
+            # Default to projects folder in the container root
+            base_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "projects")
         self.base_path = base_path
+        os.makedirs(self.base_path, exist_ok=True)
 
     def mkdir(self, path: str):
         full_path = os.path.join(self.base_path, path)

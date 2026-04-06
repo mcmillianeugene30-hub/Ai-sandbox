@@ -15,11 +15,9 @@ import asyncio
 from typing import Optional, List, Dict, Any
 
 # ─── Path bootstrap (must run before any local imports) ───────────────────────
-_CORE_DIR    = os.path.dirname(os.path.abspath(__file__))
-_NEXUS_DIR   = os.path.dirname(_CORE_DIR)
-PROJECT_ROOT = os.path.dirname(_NEXUS_DIR)
+PROJECT_ROOT = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 sys.path.insert(0, PROJECT_ROOT)
-os.environ.setdefault("NEXUS_OS_PATH", _NEXUS_DIR)
+os.environ.setdefault("NEXUS_OS_PATH", PROJECT_ROOT)
 
 # Persistent storage root (Render disk or local fallback)
 RENDER_DISK_PATH: str = os.environ.get(
