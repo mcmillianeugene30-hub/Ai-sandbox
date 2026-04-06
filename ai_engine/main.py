@@ -90,11 +90,11 @@ class argon2:
             return False
 
 # ─── CONFIGURATION ────────────────────────────────────────────────────────────
-STRIPE_SECRET_KEY  = os.environ.get("STRIPE_SECRET_KEY", "")
-STRIPE_WEBHOOK_SEC = os.environ.get("STRIPE_WEBHOOK_SECRET", "")
+STRIPE_SECRET_KEY  = os.environ.get("STRIPE_SECRET_KEY", os.environ.get("StripeSecretKey", ""))
+STRIPE_WEBHOOK_SEC = os.environ.get("STRIPE_WEBHOOK_SECRET", os.environ.get("StripeWebhookSecret", ""))
 stripe.api_key     = STRIPE_SECRET_KEY
 
-SECRET_KEY         = os.environ.get("SECRET_KEY", "nexus_super_secret_key_2026")
+SECRET_KEY         = os.environ.get("SECRET_KEY", os.environ.get("SecretKey", "nexus_super_secret_key_2026"))
 ALGORITHM          = "HS256"
 TOKEN_EXP_MINUTES  = int(os.environ.get("TOKEN_EXP_MINUTES", 600))
 
@@ -144,9 +144,9 @@ AVAILABLE_MODELS: Dict[str, List[str]] = {
 }
 
 PROVIDER_ENV_KEYS: Dict[str, str] = {
-    "groq":       "GROQ_API_KEY",
-    "google":     "GEMINI_API_KEY",
-    "openrouter": "OPENROUTER_API_KEY",
+    "groq":       "GroqApiKey",
+    "google":     "GeminiApiKey",
+    "openrouter": "OpenRouterApiKey",
 }
 
 # ─── PERSISTENT STORAGE ───────────────────────────────────────────────────────
