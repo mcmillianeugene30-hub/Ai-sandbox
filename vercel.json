@@ -1,51 +1,32 @@
 {
   "version": 2,
-  "name": "nexus-fullstack-empire",
-  "builds": [
+  "name": "nexus-dashboard",
+  "buildCommand": "./build-frontend.sh",
+  "outputDirectory": "frontend",
+  "routes": [
     {
-      "src": "api/index.py",
-      "use": "@vercel/python"
+      "src": "/dashboard",
+      "dest": "/index.html"
     },
     {
-      "src": "frontend/**",
-      "use": "@vercel/static"
-    }
-  ],
-  "rewrites": [
-    {
-      "source": "/api/(.*)",
-      "destination": "/api/index.py"
+      "src": "/admin",
+      "dest": "/index.html"
     },
     {
-      "source": "/pricing",
-      "destination": "/frontend/pricing.html"
+      "src": "/nexus",
+      "dest": "/index.html"
     },
     {
-      "source": "/(.*)",
-      "destination": "/frontend/$1"
+      "src": "/pricing",
+      "dest": "/pricing.html"
     },
     {
-      "source": "/",
-      "destination": "/frontend/index.html"
-    }
-  ],
-  "headers": [
+      "src": "/",
+      "dest": "/index.html"
+    },
     {
-      "source": "/(.*)",
-      "headers": [
-        {
-          "key": "X-Content-Type-Options",
-          "value": "nosniff"
-        },
-        {
-          "key": "X-Frame-Options",
-          "value": "SAMEORIGIN"
-        },
-        {
-          "key": "Referrer-Policy",
-          "value": "strict-origin-when-cross-origin"
-        }
-      ]
+      "src": "/(.*)",
+      "dest": "/$1"
     }
   ]
 }
