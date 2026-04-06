@@ -1,0 +1,333 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8"/>
+  <meta name="viewport" content="width=device-width,initial-scale=1.0"/>
+  <title>Project Nexus v9.0 — Unified Dashboard</title>
+  
+  <!-- Injected Config -->
+  <script src="config.js"></script>
+  <script>
+    window.__NEXUS_API_URL__ = ""; // Injected by build-frontend.sh
+    if (!window.NEXUS_API && window.__NEXUS_API_URL__) {
+      window.NEXUS_API = window.__NEXUS_API_URL__ + '/api/v1';
+    }
+  </script>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com"/>
+  <link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Barlow+Condensed:wght@400;600;700&family=Barlow:wght@300;400;500&display=swap" rel="stylesheet"/>
+  <link rel="stylesheet" href="style.css"/>
+  <link rel="stylesheet" type="text/css" href="https://tamats.com/projects/litegraph/build/litegraph.css">
+  <script type="text/javascript" src="https://tamats.com/projects/litegraph/build/litegraph.js"></script>
+</head>
+<body>
+
+<!-- ══════════════════ LOGIN MODAL ══════════════════ -->
+<div id="login-overlay">
+  <div id="login-box">
+    <h2>NEXUS v9.0</h2>
+    <p class="sub">PROJECT NEXUS v9.0 UNIFIED CONTROL CENTER</p>
+    <div class="field">
+      <div class="lbl">Username</div>
+      <input id="inp-user" class="inp" type="text" placeholder="nexus" autocomplete="username"/>
+    </div>
+    <div class="field">
+      <div class="lbl">Password</div>
+      <input id="inp-pass" class="inp" type="password" placeholder="••••••••" autocomplete="current-password"/>
+    </div>
+    <button id="btn-login">LOGIN →</button>
+    
+    <div class="nav-sep" style="margin:20px 0"></div>
+    
+    <div style="display:flex; flex-direction:column; gap:10px;">
+      <button class="btn btn-sm btn-social" data-provider="github" style="background:#24292e; color:white; width:100%; justify-content:center;">
+        <span class="icon">🐙</span> Continue with GitHub
+      </button>
+      <button class="btn btn-sm btn-social" data-provider="google" style="background:white; color:#444; width:100%; justify-content:center;">
+        <span class="icon">🔍</span> Continue with Google
+      </button>
+    </div>
+    
+    <div id="login-err"></div>
+  </div>
+</div>
+
+<!-- ══════════════════ APP SHELL ══════════════════ -->
+<div id="app" style="display:none">
+  <!-- HEADER -->
+  <div id="header">
+    <div class="logo">
+      <span id="menu-toggle">☰</span>
+      NEXUS<span>v9.0</span>
+    </div>
+    <div id="header-right">
+      <span id="badge-admin" style="display:none">[ADMIN]</span>
+      <span id="credit-display" style="display:none">⚡ <span id="credit-val">—</span> cr</span>
+      <button id="btn-logout" class="btn">LOGOUT</button>
+    </div>
+  </div>
+
+  <!-- BODY -->
+  <div id="main">
+    <!-- SIDEBAR -->
+    <nav id="sidebar" class="collapsed">
+      <div class="nav-item active" data-tab="automator" style="background:rgba(255,170,0,.1); color:var(--amber); border-left-color:var(--amber);">
+        <span class="icon">🪄</span><span>AUTOMATOR</span>
+      </div>
+      <div class="nav-sep"></div>
+      <div class="nav-item" data-tab="sandbox"><span class="icon">🔬</span><span>SANDBOX</span></div>
+      <div class="nav-item" data-tab="overview"><span class="icon">📊</span>OVERVIEW</div>
+      <div class="nav-item" data-tab="users"><span class="icon">👤</span>USERS</div>
+      <div class="nav-item" data-tab="logs"><span class="icon">📋</span>LOGS</div>
+      <div class="nav-item" data-tab="billing"><span class="icon">💳</span>BILLING</div>
+      <div class="nav-item" data-tab="judge"><span class="icon">⚖️</span>JUDGE</div>
+      <div class="nav-sep"></div>
+      <div class="nav-item" data-tab="swarm"><span class="icon">🐝</span>SWARM</div>
+      <div class="nav-item" data-tab="models"><span class="icon">🔍</span>MODELS</div>
+      <div class="nav-item" data-tab="deploy"><span class="icon">🚀</span>DEPLOY</div>
+      <div class="nav-item" data-tab="singularity"><span class="icon">🧬</span>SINGULARITY</div>
+      <div class="nav-item" data-tab="marketplace"><span class="icon">🛒</span>MARKETPLACE</div>
+      <div class="nav-sep"></div>
+      <div class="nav-item" data-tab="terminal"><span class="icon">⚡</span>TERMINAL</div>
+    </nav>
+
+    <!-- CONTENT -->
+    <div id="content">
+
+      <!-- ══ MAGIC AUTOMATOR ══ -->
+      <div id="tab-automator" class="tab-pane active">
+        <div style="text-align:center; margin-top:40px; margin-bottom:40px;">
+          <h1 style="font-family:var(--font-head); font-size:36px; color:var(--amber); letter-spacing:4px;">NEXUS MAGIC AUTOMATOR</h1>
+          <p class="t-dim" style="font-family:var(--font-mono); font-size:12px;">ONE PROMPT. ONE FULL-STACK APP. ZERO FRICTION.</p>
+        </div>
+
+        <div class="card" style="max-width:800px; margin:0 auto; padding:30px;">
+          <div class="lbl">What do you want to build?</div>
+          <textarea id="magic-prompt" class="inp" style="height:120px; font-size:16px; margin-bottom:20px;" placeholder="e.g. Build a real-time crypto portfolio tracker with a FastAPI backend and a React dashboard..."></textarea>
+          
+          <div class="flex-between">
+            <div class="toggle-wrap">
+              <label class="toggle"><input type="checkbox" id="magic-deploy" checked><span class="toggle-slider"></span></label>
+              AUTO-DEPLOY TO CLOUD
+            </div>
+            <button id="btn-magic-build" class="btn btn-amber" style="padding:15px 40px; font-size:16px;">✨ BUILD MY EMPIRE</button>
+          </div>
+        </div>
+
+        <!-- Progress Overlay (Hidden initially) -->
+        <div id="magic-progress-wrap" style="display:none; max-width:800px; margin:30px auto;">
+          <div class="card">
+            <div class="flex-between" style="margin-bottom:15px;">
+              <div class="card-title" id="magic-status-text">INITIATING NEXUS PROTOCOL...</div>
+              <div class="spin" style="color:var(--amber)">⚙</div>
+            </div>
+            
+            <div id="magic-steps" style="display:flex; flex-direction:column; gap:10px;">
+              <!-- Steps will be injected here -->
+            </div>
+          </div>
+          
+          <div id="magic-terminal" class="terminal mt12" style="height:200px;">
+            <span class="t-dim">// Awaiting sequence start...</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══ SANDBOX ══ -->
+      <div id="tab-sandbox" class="tab-pane">
+        <div class="flex-between">
+          <div style="font-family:var(--font-head);font-size:18px;font-weight:700;letter-spacing:1px;color:var(--neon)">🔬 PROJECT NEXUS v9.0 SANDBOX</div>
+          <div class="flex-row">
+            <div class="toggle-wrap">
+              <label class="toggle"><input type="checkbox" id="sb-stream"><span class="toggle-slider"></span></label> STREAM
+            </div>
+            <div class="toggle-wrap">
+              <label class="toggle"><input type="checkbox" id="sb-rag"><span class="toggle-slider"></span></label> RAG
+            </div>
+            <div class="toggle-wrap">
+              <label class="toggle"><input type="checkbox" id="sb-compare"><span class="toggle-slider"></span></label> COMPARE
+            </div>
+          </div>
+        </div>
+
+        <div class="sandbox-controls card">
+          <div class="col" style="max-width:180px">
+            <div class="lbl">Active Workspace</div>
+            <div class="flex-row">
+              <select id="sb-workspace" class="inp">
+                <option value="default">Default Project</option>
+              </select>
+              <button id="btn-ws-add" class="btn btn-cyan btn-sm">+</button>
+            </div>
+          </div>
+          <div class="col" style="max-width:150px">
+            <div class="lbl">Provider</div>
+            <select id="sb-provider" class="inp">
+              <option value="groq">Groq</option>
+              <option value="google">Google</option>
+              <option value="openrouter">OpenRouter</option>
+              <option value="ollama">Ollama</option>
+            </select>
+          </div>
+          <div class="col" style="max-width:220px">
+            <div class="lbl">Model</div>
+            <select id="sb-model" class="inp"></select>
+          </div>
+          <div style="align-self:flex-end">
+            <button id="btn-sb-run" class="btn btn-neon">▶ RUN CODE</button>
+          </div>
+          <div style="align-self:flex-end">
+            <button id="btn-sb-save" class="btn btn-purple btn-sm">SAVE</button>
+          </div>
+          <div style="align-self:flex-end">
+            <button id="btn-sb-clear" class="btn btn-cyan btn-sm">CLEAR</button>
+          </div>
+        </div>
+
+        <div class="sandbox-layout">
+          <div class="sandbox-left">
+            <div class="flex-between">
+              <div class="lbl">EDITOR</div>
+              <div class="toggle-wrap">
+                <label class="toggle"><input type="checkbox" id="sb-visual-toggle"><span class="toggle-slider"></span></label> VISUAL
+              </div>
+            </div>
+            <div id="editor-wrap"></div>
+            <div id="visual-editor-wrap" style="display:none; flex:1; background:#000; border:1px solid var(--border); border-radius:4px; position:relative; flex-direction:column;">
+              <div class="flex-row" style="padding:5px; background:var(--bg4); border-bottom:1px solid var(--border);">
+                <button id="btn-visual-run" class="btn btn-neon btn-sm">▶ RUN GRAPH</button>
+                <span class="t-dim" style="font-size:10px;">Right-click to add nodes</span>
+              </div>
+              <canvas id="visual-canvas" width="800" height="400" style="width:100%; flex:1;"></canvas>
+            </div>
+          </div>
+          <div class="sandbox-right">
+            <div class="lbl">OUTPUT CONSOLE</div>
+            <div id="sb-console" class="console-wrap">
+              <span class="t-dim">// Run code to see output…</span>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- ══ OVERVIEW ══ -->
+      <div id="tab-overview" class="tab-pane">
+        <div class="flex-between">
+          <div style="font-family:var(--font-head);font-size:18px;font-weight:700;color:var(--cyan)">📊 NEXUS v9.0 OVERVIEW</div>
+          <button id="btn-refresh-overview" class="btn btn-cyan btn-sm">↻ REFRESH</button>
+        </div>
+        <div class="kpi-grid">
+          <div class="kpi"><div class="kpi-val" id="ov-users">—</div><div class="kpi-label">TOTAL USERS</div></div>
+          <div class="kpi"><div class="kpi-val cyan" id="ov-mrr">—</div><div class="kpi-label">MRR ($)</div></div>
+          <div class="kpi"><div class="kpi-val amber" id="ov-arr">—</div><div class="kpi-label">ARR ($)</div></div>
+          <div class="kpi"><div class="kpi-val purple" id="ov-api-cost">—</div><div class="kpi-label">API COST ($)</div></div>
+          <div class="kpi"><div class="kpi-val cyan" id="ov-requests">—</div><div class="kpi-label">TOTAL REQUESTS</div></div>
+        </div>
+        <div class="row">
+          <div class="col card">
+            <div class="card-title">Plan Breakdown</div>
+            <div class="tbl-wrap">
+              <table>
+                <thead><tr><th>Plan</th><th>Users</th><th>MRR</th><th>%</th></tr></thead>
+                <tbody id="ov-plan-tbl"></tbody>
+              </table>
+            </div>
+          </div>
+          <div class="col card">
+            <div class="card-title">Model Usage</div>
+            <div class="tbl-wrap">
+              <table>
+                <thead><tr><th>Model</th><th>Calls</th><th>Tokens</th><th>Cost</th></tr></thead>
+                <tbody id="ov-model-tbl"></tbody>
+              </table>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <!-- Other tabs follow same pattern -->
+      <div id="tab-users" class="tab-pane"><div class="card"><div class="tbl-wrap"><table><thead><tr><th>ID</th><th>User</th><th>Email</th><th>Plan</th><th>Credits</th><th>Expires</th><th>Actions</th></tr></thead><tbody id="users-tbl"></tbody></table></div></div></div>
+      <div id="tab-logs" class="tab-pane"><div class="card"><div class="tbl-wrap"><table><thead><tr><th>★</th><th>ID</th><th>User</th><th>Model</th><th>Tokens</th><th>Cost</th><th>Time</th><th>Status</th></tr></thead><tbody id="logs-tbl"></tbody></table></div></div></div>
+      <div id="tab-billing" class="tab-pane">
+        <div class="flex-between">
+          <div style="font-family:var(--font-head);font-size:18px;font-weight:700;color:var(--cyan)">💳 BILLING & CREDITS</div>
+          <button id="btn-buy-credits" class="btn btn-neon">💳 BUY CREDITS (STRIPE)</button>
+        </div>
+        <div class="row">
+      
+      <!-- ══ JUDGE ══ -->
+      <div id="tab-judge" class="tab-pane">
+        <div style="font-family:var(--font-head);font-size:18px;font-weight:700;color:var(--cyan)">⚖️ LLM-AS-A-JUDGE EVALUATOR</div>
+        <div class="card">
+          <div class="lbl">Prompt to Evaluate</div>
+          <textarea id="judge-prompt" class="inp" style="height:60px; margin-bottom:10px;" placeholder="Original user prompt..."></textarea>
+          <div class="row">
+            <div class="col">
+              <div class="lbl">Response A</div>
+              <textarea id="judge-res-a" class="inp" style="height:120px;" placeholder="AI output A..."></textarea>
+            </div>
+            <div class="col">
+              <div class="lbl">Response B</div>
+              <textarea id="judge-res-b" class="inp" style="height:120px;" placeholder="AI output B..."></textarea>
+            </div>
+          </div>
+          <div class="flex-row mt12">
+            <button id="btn-run-judge" class="btn btn-cyan">⚖️ EVALUATE RESPONSES</button>
+          </div>
+        </div>
+        <div class="card" style="flex:1; display:flex; flex-direction:column">
+          <div class="card-title">Verdict</div>
+          <div id="judge-output" class="terminal" style="flex:1; max-height:unset">
+            <span class="t-dim">// Waiting for input...</span>
+          </div>
+        </div>
+      </div>
+
+      <div id="tab-swarm" class="tab-pane"><div class="card"><div class="row"><input id="swarm-goal" class="inp" placeholder="Goal..."/><select id="swarm-nodes" class="inp"><option>3</option><option>5</option></select><button id="btn-swarm-activate" class="btn btn-amber">ACTIVATE</button></div></div><div id="swarm-node-grid" class="node-grid"></div><div id="swarm-log" class="terminal"></div><div id="swarm-consensus" class="terminal"></div></div>
+      <div id="tab-models" class="tab-pane"><button id="btn-scan-models" class="btn btn-purple">SCAN</button><div id="models-disc-log" class="terminal"></div><div class="tbl-wrap"><table><thead><tr><th>Prov</th><th>Model</th><th>Context</th><th>Status</th></tr></thead><tbody id="models-registry-tbl"></tbody></table></div></div>
+      <div id="tab-deploy" class="tab-pane">
+        <div class="flex-row" style="margin-bottom:10px;">
+          <button id="btn-deploy-trigger" class="btn btn-neon">🚀 TRIGGER DEPLOY</button>
+          <button id="btn-export-docker" class="btn btn-purple btn-sm">📦 EXPORT DOCKER</button>
+        </div>
+        <div id="deploy-status-badge"></div>
+        <div id="deploy-log" class="terminal"></div>
+      </div>
+      <div id="tab-singularity" class="tab-pane"><div class="kpi-grid"><div class="kpi"><div id="sing-error-rate" class="kpi-val"></div></div><div class="kpi"><div id="sing-evo-count" class="kpi-val"></div></div><div class="kpi"><div id="sing-status-kpi" class="kpi-val"></div></div></div><button id="btn-sing-evolve" class="btn btn-red">EVOLVE</button><div id="sing-log" class="terminal"></div></div>
+      <!-- ══ MARKETPLACE ══ -->
+      <div id="tab-marketplace" class="tab-pane">
+        <div style="font-family:var(--font-head);font-size:18px;font-weight:700;color:var(--neon)">🛒 AGENT MARKETPLACE</div>
+        <div class="card">
+          <div class="card-title">Community Agent Personas</div>
+          <div class="kpi-grid" style="grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));">
+            <div class="kpi" style="text-align:left;">
+              <div style="font-size:14px; color:var(--neon);">SQL Optimizer Agent</div>
+              <div class="lbl" style="margin-top:4px;">By: NexusCore</div>
+              <button class="btn btn-neon btn-sm mt8" style="width:100%;">INSTALL</button>
+            </div>
+            <div class="kpi" style="text-align:left;">
+              <div style="font-size:14px; color:var(--cyan);">Vue.js Architect</div>
+              <div class="lbl" style="margin-top:4px;">By: DevMaster</div>
+              <button class="btn btn-cyan btn-sm mt8" style="width:100%;">INSTALL</button>
+            </div>
+            <div class="kpi" style="text-align:left;">
+              <div style="font-size:14px; color:var(--amber);">Security Auditor</div>
+              <div class="lbl" style="margin-top:4px;">By: WhiteHat</div>
+              <button class="btn btn-amber btn-sm mt8" style="width:100%;">INSTALL</button>
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div id="tab-terminal" class="tab-pane"><input id="term-task" class="inp" placeholder="Build..."/><button id="btn-term-run" class="btn btn-amber">RUN</button><div id="term-status"></div><div id="term-output" class="terminal"></div></div>
+
+    </div>
+  </div>
+</div>
+
+<!-- Monaco Loader -->
+<script>var require={paths:{vs:'https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.43.0/min/vs'}}</script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/monaco-editor/0.43.0/min/vs/loader.min.js"></script>
+<script src="script.js"></script>
+</body>
+</html>

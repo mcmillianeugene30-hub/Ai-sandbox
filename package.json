@@ -1,0 +1,28 @@
+{
+  "name": "ai-sandbox",
+  "version": "1.0.0",
+  "description": "> **The world's first industrial-grade self-evolving AI operating system.** From a multi-provider sandbox to a secure, multi-tenant, visual agentic platform — built for scale.",
+  "main": "index.js",
+  "directories": {
+    "test": "tests"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "https://github.com/mcmillianeugene30-hub/Ai-sandbox.git"
+  },
+  "keywords": [],
+  "author": "",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/mcmillianeugene30-hub/Ai-sandbox/issues"
+  },
+  "homepage": "https://github.com/mcmillianeugene30-hub/Ai-sandbox#readme",
+  "dependencies": {
+    "encore.dev": "^1.56.3",
+    "ts-node": "^10.9.2",
+    "typescript": "^6.0.2"
+  }
+}

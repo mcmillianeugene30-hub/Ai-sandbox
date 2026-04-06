@@ -1,0 +1,702 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Project Nexus — Revenue Intelligence</title>
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Barlow+Condensed:wght@300;400;600;700;900&family=Barlow:wght@300;400;500&display=swap');
+
+  :root {
+    --bg: #050a0e;
+    --surface: #0b1318;
+    --card: #0f1c24;
+    --border: #1a2f3a;
+    --neon: #00ff88;
+    --cyan: #00d4ff;
+    --amber: #ffaa00;
+    --red: #ff4455;
+    --purple: #9d4edd;
+    --text: #c8dde8;
+    --muted: #4a6478;
+    --mono: 'Share Tech Mono', monospace;
+    --head: 'Barlow Condensed', sans-serif;
+    --body: 'Barlow', sans-serif;
+  }
+
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--body);
+    min-height: 100vh;
+    overflow-x: hidden;
+  }
+
+  body::before {
+    content: '';
+    position: fixed;
+    inset: 0;
+    background: repeating-linear-gradient(
+      0deg,
+      transparent,
+      transparent 2px,
+      rgba(0,255,136,0.012) 2px,
+      rgba(0,255,136,0.012) 4px
+    );
+    pointer-events: none;
+    z-index: 9999;
+  }
+
+  .header {
+    border-bottom: 1px solid var(--border);
+    padding: 20px 32px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    background: linear-gradient(90deg, rgba(0,255,136,0.04) 0%, transparent 60%);
+    position: relative;
+  }
+
+  .header::after {
+    content: '';
+    position: absolute;
+    bottom: -1px;
+    left: 0;
+    width: 180px;
+    height: 2px;
+    background: var(--neon);
+    box-shadow: 0 0 12px var(--neon);
+  }
+
+  .logo {
+    font-family: var(--head);
+    font-weight: 900;
+    font-size: 22px;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    color: var(--neon);
+    text-shadow: 0 0 20px rgba(0,255,136,0.5);
+  }
+
+  .version-badge {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--muted);
+    border: 1px solid var(--border);
+    padding: 4px 10px;
+    border-radius: 2px;
+  }
+
+  .container { max-width: 1200px; margin: 0 auto; padding: 32px; }
+
+  .section-title {
+    font-family: var(--head);
+    font-weight: 700;
+    font-size: 13px;
+    letter-spacing: 4px;
+    text-transform: uppercase;
+    color: var(--muted);
+    margin-bottom: 20px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  .section-title::after {
+    content: '';
+    flex: 1;
+    height: 1px;
+    background: var(--border);
+  }
+
+  .stat-grid {
+    display: grid;
+    grid-template-columns: repeat(4, 1fr);
+    gap: 16px;
+    margin-bottom: 40px;
+  }
+
+  .stat-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    padding: 20px;
+    position: relative;
+    overflow: hidden;
+  }
+
+  .stat-card::before {
+    content: '';
+    position: absolute;
+    top: 0; left: 0;
+    width: 3px;
+    height: 100%;
+  }
+
+  .stat-card.neon::before { background: var(--neon); box-shadow: 0 0 8px var(--neon); }
+  .stat-card.cyan::before { background: var(--cyan); box-shadow: 0 0 8px var(--cyan); }
+  .stat-card.amber::before { background: var(--amber); box-shadow: 0 0 8px var(--amber); }
+  .stat-card.purple::before { background: var(--purple); box-shadow: 0 0 8px var(--purple); }
+
+  .stat-label { font-family: var(--mono); font-size: 10px; color: var(--muted); letter-spacing: 2px; text-transform: uppercase; margin-bottom: 8px; }
+  .stat-value { font-family: var(--head); font-weight: 900; font-size: 32px; line-height: 1; margin-bottom: 4px; }
+  .stat-sub { font-family: var(--body); font-size: 12px; color: var(--muted); }
+
+  .neon .stat-value { color: var(--neon); text-shadow: 0 0 16px rgba(0,255,136,0.4); }
+  .cyan .stat-value { color: var(--cyan); text-shadow: 0 0 16px rgba(0,212,255,0.4); }
+  .amber .stat-value { color: var(--amber); text-shadow: 0 0 16px rgba(255,170,0,0.4); }
+  .purple .stat-value { color: var(--purple); text-shadow: 0 0 16px rgba(157,78,221,0.4); }
+
+  .table-wrapper { background: var(--card); border: 1px solid var(--border); overflow: hidden; margin-bottom: 40px; }
+  table { width: 100%; border-collapse: collapse; font-size: 13px; }
+  thead tr { background: rgba(0,255,136,0.04); border-bottom: 1px solid var(--border); }
+  th { font-family: var(--mono); font-size: 10px; letter-spacing: 2px; text-transform: uppercase; color: var(--muted); padding: 14px 16px; text-align: left; white-space: nowrap; }
+  td { padding: 12px 16px; border-bottom: 1px solid rgba(26,47,58,0.5); font-family: var(--body); font-size: 13px; color: var(--text); vertical-align: middle; }
+  tbody tr:hover { background: rgba(0,255,136,0.03); }
+  tbody tr:last-child td { border-bottom: none; }
+
+  .provider-badge { font-family: var(--mono); font-size: 10px; padding: 3px 8px; border-radius: 2px; font-weight: 600; letter-spacing: 1px; }
+  .badge-free { background: rgba(0,255,136,0.1); color: var(--neon); border: 1px solid rgba(0,255,136,0.2); }
+  .badge-paid { background: rgba(255,170,0,0.1); color: var(--amber); border: 1px solid rgba(255,170,0,0.2); }
+  .badge-local { background: rgba(157,78,221,0.1); color: var(--purple); border: 1px solid rgba(157,78,221,0.2); }
+
+  .margin-bar-wrap { display: flex; align-items: center; gap: 8px; }
+  .margin-bar { height: 6px; border-radius: 1px; background: var(--border); flex: 1; overflow: hidden; min-width: 80px; }
+  .margin-fill { height: 100%; border-radius: 1px; transition: width 0.6s ease; }
+  .margin-fill.high { background: var(--neon); box-shadow: 0 0 6px var(--neon); }
+  .margin-fill.mid { background: var(--cyan); }
+  .margin-fill.low { background: var(--amber); }
+  .margin-fill.neg { background: var(--red); }
+  .margin-pct { font-family: var(--mono); font-size: 11px; min-width: 38px; text-align: right; }
+  .margin-pct.high { color: var(--neon); }
+  .margin-pct.mid { color: var(--cyan); }
+  .margin-pct.low { color: var(--amber); }
+  .margin-pct.neg { color: var(--red); }
+
+  .two-col { display: grid; grid-template-columns: 1fr 1fr; gap: 24px; margin-bottom: 40px; }
+  .panel { background: var(--card); border: 1px solid var(--border); padding: 24px; }
+  .panel-title { font-family: var(--head); font-weight: 700; font-size: 14px; letter-spacing: 2px; text-transform: uppercase; color: var(--text); margin-bottom: 20px; padding-bottom: 12px; border-bottom: 1px solid var(--border); }
+
+  .tier-row { display: flex; align-items: flex-start; gap: 16px; margin-bottom: 18px; padding-bottom: 18px; border-bottom: 1px solid rgba(26,47,58,0.6); }
+  .tier-row:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+  .tier-icon { width: 36px; height: 36px; border-radius: 2px; display: flex; align-items: center; justify-content: center; font-size: 16px; flex-shrink: 0; }
+  .tier-icon.free { background: rgba(0,255,136,0.1); border: 1px solid rgba(0,255,136,0.2); }
+  .tier-icon.pro { background: rgba(0,212,255,0.1); border: 1px solid rgba(0,212,255,0.2); }
+  .tier-icon.ent { background: rgba(157,78,221,0.1); border: 1px solid rgba(157,78,221,0.2); }
+  .tier-name { font-family: var(--head); font-weight: 700; font-size: 16px; letter-spacing: 1px; text-transform: uppercase; margin-bottom: 2px; }
+  .tier-price { font-family: var(--mono); font-size: 12px; color: var(--muted); margin-bottom: 6px; }
+  .tier-details { font-size: 12px; color: var(--muted); line-height: 1.6; }
+  .free .tier-name { color: var(--neon); }
+  .pro .tier-name { color: var(--cyan); }
+  .ent .tier-name { color: var(--purple); }
+
+  .scenario-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 16px; margin-bottom: 40px; }
+  .scenario-card { background: var(--card); border: 1px solid var(--border); padding: 20px; position: relative; }
+  .scenario-card.featured { border-color: rgba(0,255,136,0.3); background: rgba(0,255,136,0.03); }
+  .scenario-card.featured::after { content: 'RECOMMENDED'; position: absolute; top: -1px; right: 16px; background: var(--neon); color: var(--bg); font-family: var(--mono); font-size: 9px; letter-spacing: 2px; padding: 2px 8px; font-weight: 700; }
+  .scenario-label { font-family: var(--head); font-weight: 700; font-size: 12px; letter-spacing: 3px; text-transform: uppercase; color: var(--muted); margin-bottom: 12px; }
+  .scenario-users { font-family: var(--mono); font-size: 11px; color: var(--muted); margin-bottom: 4px; }
+  .scenario-revenue { font-family: var(--head); font-weight: 900; font-size: 28px; color: var(--neon); text-shadow: 0 0 12px rgba(0,255,136,0.3); margin-bottom: 2px; }
+  .scenario-profit { font-family: var(--mono); font-size: 12px; color: var(--cyan); margin-bottom: 16px; }
+  .scenario-breakdown { font-size: 11px; color: var(--muted); line-height: 1.8; font-family: var(--mono); }
+  .scenario-breakdown span { color: var(--text); }
+
+  .alert { border: 1px solid rgba(0,255,136,0.2); background: rgba(0,255,136,0.04); padding: 16px 20px; margin-bottom: 40px; display: flex; gap: 16px; align-items: flex-start; }
+  .alert-icon { font-size: 18px; flex-shrink: 0; margin-top: 1px; }
+  .alert-body { font-size: 13px; line-height: 1.7; color: var(--text); }
+  .alert-body strong { color: var(--neon); font-family: var(--mono); font-size: 11px; letter-spacing: 1px; }
+
+  .cost-chart { margin-bottom: 32px; }
+  .cost-row { display: grid; grid-template-columns: 140px 1fr 80px; align-items: center; gap: 12px; margin-bottom: 10px; }
+  .cost-label { font-family: var(--mono); font-size: 11px; color: var(--muted); text-align: right; }
+  .cost-track { height: 24px; background: rgba(26,47,58,0.5); border-radius: 2px; overflow: hidden; position: relative; }
+  .cost-fill { height: 100%; display: flex; align-items: center; padding-left: 8px; font-family: var(--mono); font-size: 10px; font-weight: 700; transition: width 0.8s cubic-bezier(0.4,0,0.2,1); position: relative; min-width: 2px; }
+  .cost-val { font-family: var(--mono); font-size: 11px; text-align: right; }
+
+  .rec-list { list-style: none; }
+  .rec-list li { display: flex; gap: 12px; padding: 10px 0; border-bottom: 1px solid rgba(26,47,58,0.5); font-size: 13px; line-height: 1.5; color: var(--text); align-items: flex-start; }
+  .rec-list li:last-child { border-bottom: none; }
+  .rec-num { font-family: var(--mono); font-size: 11px; color: var(--neon); flex-shrink: 0; padding-top: 2px; }
+
+  /* Signup CTA */
+  .cta-section { text-align: center; padding: 48px 32px; border: 1px solid rgba(0,255,136,0.2); background: rgba(0,255,136,0.03); margin-bottom: 40px; }
+  .cta-title { font-family: var(--head); font-weight: 900; font-size: 36px; letter-spacing: 4px; text-transform: uppercase; color: var(--neon); text-shadow: 0 0 30px rgba(0,255,136,0.4); margin-bottom: 12px; }
+  .cta-sub { font-family: var(--mono); font-size: 13px; color: var(--muted); margin-bottom: 32px; }
+  .cta-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 20px; max-width: 800px; margin: 0 auto 32px; }
+  .cta-plan { border: 1px solid var(--border); padding: 24px 20px; background: var(--card); cursor: pointer; transition: all 0.2s; }
+  .cta-plan:hover { border-color: var(--neon); transform: translateY(-4px); box-shadow: 0 8px 24px rgba(0,255,136,0.1); }
+  .cta-plan.starter:hover { border-color: var(--neon); }
+  .cta-plan.pro:hover { border-color: var(--cyan); }
+  .cta-plan.enterprise:hover { border-color: var(--purple); }
+  .cta-plan-name { font-family: var(--head); font-weight: 900; font-size: 20px; letter-spacing: 2px; text-transform: uppercase; margin-bottom: 6px; }
+  .cta-plan.starter .cta-plan-name { color: var(--neon); }
+  .cta-plan.pro .cta-plan-name { color: var(--cyan); }
+  .cta-plan.enterprise .cta-plan-name { color: var(--purple); }
+  .cta-plan-price { font-family: var(--head); font-weight: 700; font-size: 32px; margin-bottom: 4px; }
+  .cta-plan-credits { font-family: var(--mono); font-size: 11px; color: var(--muted); margin-bottom: 16px; }
+  .cta-plan-features { font-size: 12px; color: var(--muted); line-height: 1.8; text-align: left; }
+  .cta-btn { display: inline-block; padding: 12px 32px; font-family: var(--head); font-weight: 700; font-size: 14px; letter-spacing: 3px; text-transform: uppercase; cursor: pointer; border: none; text-decoration: none; }
+  .cta-btn.neon { background: var(--neon); color: var(--bg); }
+  .cta-btn.cyan { background: var(--cyan); color: var(--bg); }
+  .cta-btn.purple { background: var(--purple); color: #fff; }
+
+  .footer { border-top: 1px solid var(--border); padding: 16px 32px; display: flex; justify-content: space-between; align-items: center; margin-top: 24px; }
+  .footer-left { font-family: var(--mono); font-size: 10px; color: var(--muted); letter-spacing: 2px; }
+  .uptime { font-family: var(--mono); font-size: 10px; color: var(--neon); display: flex; align-items: center; gap: 6px; }
+  .pulse { width: 6px; height: 6px; background: var(--neon); border-radius: 50%; animation: pulse 2s infinite; box-shadow: 0 0 6px var(--neon); }
+
+  @keyframes pulse { 0%, 100% { opacity: 1; transform: scale(1); } 50% { opacity: 0.4; transform: scale(0.8); } }
+
+  .fade-in { animation: fadeIn 0.5s ease both; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(12px); } to { opacity: 1; transform: translateY(0); } }
+  .fade-in:nth-child(1) { animation-delay: 0.05s; }
+  .fade-in:nth-child(2) { animation-delay: 0.1s; }
+  .fade-in:nth-child(3) { animation-delay: 0.15s; }
+  .fade-in:nth-child(4) { animation-delay: 0.2s; }
+
+  .tag { display: inline-block; font-family: var(--mono); font-size: 9px; padding: 2px 6px; margin-left: 6px; vertical-align: middle; }
+  .tag-star { background: rgba(255,170,0,0.15); color: var(--amber); border: 1px solid rgba(255,170,0,0.25); }
+  .tag-new { background: rgba(0,255,136,0.1); color: var(--neon); border: 1px solid rgba(0,255,136,0.2); }
+
+  @media (max-width: 768px) {
+    .stat-grid { grid-template-columns: 1fr 1fr; }
+    .two-col { grid-template-columns: 1fr; }
+    .scenario-grid { grid-template-columns: 1fr; }
+    .cta-grid { grid-template-columns: 1fr; }
+    .container { padding: 16px; }
+    .cost-row { grid-template-columns: 100px 1fr 70px; }
+  }
+</style>
+<script src="config.js" onerror="window.NEXUS_API='https://nexus-backend.onrender.com/api/v1'"></script>
+</head>
+<body>
+
+<header class="header">
+  <div class="logo">⬡ PROJECT NEXUS</div>
+  <div style="display:flex;align-items:center;gap:16px;">
+    <div class="version-badge">REVENUE INTELLIGENCE v7.1</div>
+    <div class="uptime"><div class="pulse"></div> LIVE MODEL COSTS 2026</div>
+  </div>
+</header>
+
+<div class="container">
+
+  <!-- Top KPIs -->
+  <div class="section-title">PLATFORM ECONOMICS AT A GLANCE</div>
+  <div class="stat-grid">
+    <div class="stat-card neon fade-in">
+      <div class="stat-label">Your Credit Price</div>
+      <div class="stat-value">$0.10</div>
+      <div class="stat-sub">per credit · $1 = 10 cr</div>
+    </div>
+    <div class="stat-card cyan fade-in">
+      <div class="stat-label">Free Stack Margin</div>
+      <div class="stat-value">~97%</div>
+      <div class="stat-sub">Groq + OpenRouter free tier</div>
+    </div>
+    <div class="stat-card amber fade-in">
+      <div class="stat-label">Paid Stack Margin</div>
+      <div class="stat-value">~60%</div>
+      <div class="stat-sub">GPT-4o / Claude Sonnet blend</div>
+    </div>
+    <div class="stat-card purple fade-in">
+      <div class="stat-label">Ollama Margin</div>
+      <div class="stat-value">~99%</div>
+      <div class="stat-sub">self-hosted · GPU server cost only</div>
+    </div>
+  </div>
+
+  <!-- CTA Signup Section -->
+  <div class="cta-section fade-in">
+    <div class="cta-title">Choose Your Plan</div>
+    <div class="cta-sub">NO FREE TIER · ALL PLANS INCLUDE CREDITS · CANCEL ANYTIME</div>
+    <div class="cta-grid">
+      <div class="cta-plan starter" onclick="selectPlan('STARTER')">
+        <div class="cta-plan-name">Starter</div>
+        <div class="cta-plan-price" style="color:var(--neon);">$9<span style="font-size:16px;color:var(--muted);">/mo</span></div>
+        <div class="cta-plan-credits">90 credits included</div>
+        <div class="cta-plan-features">
+          ✓ Groq Llama 8B &amp; 70B<br>
+          ✓ Gemini Flash<br>
+          ✓ Basic AI Sandbox<br>
+          ✓ 1cr per agent action<br>
+          ✗ Full-Stack App Builder<br>
+          ✗ GPT-4o / Claude
+        </div>
+      </div>
+      <div class="cta-plan pro" onclick="selectPlan('PRO')">
+        <div class="cta-plan-name">Pro</div>
+        <div class="cta-plan-price" style="color:var(--cyan);">$29<span style="font-size:16px;color:var(--muted);">/mo</span></div>
+        <div class="cta-plan-credits">150 credits included</div>
+        <div class="cta-plan-features">
+          ✓ All Starter models<br>
+          ✓ Gemini Pro, Mistral<br>
+          ✓ Full-Stack App Builder<br>
+          ✓ Nexus Orchestrator<br>
+          ✓ 5cr per deploy<br>
+          ✗ GPT-4o / Claude
+        </div>
+      </div>
+      <div class="cta-plan enterprise" onclick="selectPlan('ENTERPRISE')">
+        <div class="cta-plan-name">Enterprise</div>
+        <div class="cta-plan-price" style="color:var(--purple);">$99<span style="font-size:16px;color:var(--muted);">/mo</span></div>
+        <div class="cta-plan-credits">600 credits included</div>
+        <div class="cta-plan-features">
+          ✓ ALL models<br>
+          ✓ GPT-4o &amp; Claude Sonnet<br>
+          ✓ Hive Consensus Engine<br>
+          ✓ Self-Evolving Kernel<br>
+          ✓ Priority routing<br>
+          ✓ Custom deployments
+        </div>
+      </div>
+    </div>
+    <div id="cta-action" style="display:none;margin-top:16px;">
+      <a href="/api/v1/auth/register" id="cta-link" class="cta-btn neon">GET STARTED →</a>
+    </div>
+    <div style="font-family:var(--mono);font-size:11px;color:var(--muted);margin-top:16px;">
+      Already have an account? <a href="/nexus/dashboard.html" style="color:var(--neon);text-decoration:none;">LOGIN →</a>
+    </div>
+  </div>
+
+  <!-- Model Cost Table -->
+  <div class="section-title">MODEL COST VS YOUR SELL PRICE — PER 1M TOKENS</div>
+  <div class="table-wrapper fade-in">
+    <table>
+      <thead>
+        <tr>
+          <th>Model</th><th>Provider</th><th>Tier</th>
+          <th>Your Cost / 1M</th><th>You Charge / 1M</th>
+          <th>Gross Margin</th><th>Best For</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Llama 3.1 8B</strong></td><td>Groq</td>
+          <td><span class="provider-badge badge-free">FREE API</span></td>
+          <td style="color:var(--neon);font-family:var(--mono);">$0.00</td>
+          <td style="font-family:var(--mono);">$0.50–1.00</td>
+          <td><div class="margin-bar-wrap"><div class="margin-bar"><div class="margin-fill high" style="width:100%"></div></div><span class="margin-pct high">~100%</span></div></td>
+          <td style="color:var(--muted);font-size:12px;">STARTER chat</td>
+        </tr>
+        <tr>
+          <td><strong>Llama 3.1 70B</strong></td><td>Groq</td>
+          <td><span class="provider-badge badge-free">FREE API</span></td>
+          <td style="color:var(--neon);font-family:var(--mono);">$0.00</td>
+          <td style="font-family:var(--mono);">$1.00–2.00</td>
+          <td><div class="margin-bar-wrap"><div class="margin-bar"><div class="margin-fill high" style="width:100%"></div></div><span class="margin-pct high">~100%</span></div></td>
+          <td style="color:var(--muted);font-size:12px;">PRO reasoning</td>
+        </tr>
+        <tr>
+          <td><strong>Gemini Flash 1.5</strong></td><td>Google</td>
+          <td><span class="provider-badge badge-free">FREE API</span></td>
+          <td style="color:var(--neon);font-family:var(--mono);">$0.00</td>
+          <td style="font-family:var(--mono);">$0.50–1.50</td>
+          <td><div class="margin-bar-wrap"><div class="margin-bar"><div class="margin-fill high" style="width:100%"></div></div><span class="margin-pct high">~100%</span></div></td>
+          <td style="color:var(--muted);font-size:12px;">Vision, long-ctx</td>
+        </tr>
+        <tr>
+          <td><strong>Mistral 7B / Qwen</strong></td><td>OpenRouter</td>
+          <td><span class="provider-badge badge-free">FREE API</span></td>
+          <td style="color:var(--neon);font-family:var(--mono);">$0.00</td>
+          <td style="font-family:var(--mono);">$0.50–1.00</td>
+          <td><div class="margin-bar-wrap"><div class="margin-bar"><div class="margin-fill high" style="width:100%"></div></div><span class="margin-pct high">~100%</span></div></td>
+          <td style="color:var(--muted);font-size:12px;">Code assist</td>
+        </tr>
+        <tr>
+          <td><strong>Llama 3 70B</strong> <span class="tag tag-star">★ BEST</span></td><td>Ollama (self-hosted)</td>
+          <td><span class="provider-badge badge-local">LOCAL</span></td>
+          <td style="color:var(--purple);font-family:var(--mono);">~$0.01–0.05</td>
+          <td style="font-family:var(--mono);">$1.00–2.00</td>
+          <td><div class="margin-bar-wrap"><div class="margin-bar"><div class="margin-fill high" style="width:97%"></div></div><span class="margin-pct high">97–99%</span></div></td>
+          <td style="color:var(--muted);font-size:12px;">Volume PRO</td>
+        </tr>
+        <tr>
+          <td><strong>GPT-4o Mini</strong></td><td>OpenAI</td>
+          <td><span class="provider-badge badge-paid">PAID</span></td>
+          <td style="color:var(--amber);font-family:var(--mono);">$0.15–0.60</td>
+          <td style="font-family:var(--mono);">$1.50–3.00</td>
+          <td><div class="margin-bar-wrap"><div class="margin-bar"><div class="margin-fill mid" style="width:78%"></div></div><span class="margin-pct mid">78–80%</span></div></td>
+          <td style="color:var(--muted);font-size:12px;">Quality upsell</td>
+        </tr>
+        <tr>
+          <td><strong>Claude Sonnet 4</strong></td><td>Anthropic</td>
+          <td><span class="provider-badge badge-paid">PAID</span></td>
+          <td style="color:var(--amber);font-family:var(--mono);">$3.00–15.00</td>
+          <td style="font-family:var(--mono);">$5.00–20.00</td>
+          <td><div class="margin-bar-wrap"><div class="margin-bar"><div class="margin-fill low" style="width:45%"></div></div><span class="margin-pct low">40–55%</span></div></td>
+          <td style="color:var(--muted);font-size:12px;">ENT flagship</td>
+        </tr>
+        <tr>
+          <td><strong>GPT-4o</strong></td><td>OpenAI</td>
+          <td><span class="provider-badge badge-paid">PAID</span></td>
+          <td style="color:var(--amber);font-family:var(--mono);">$2.50–10.00</td>
+          <td style="font-family:var(--mono);">$5.00–15.00</td>
+          <td><div class="margin-bar-wrap"><div class="margin-bar"><div class="margin-fill low" style="width:42%"></div></div><span class="margin-pct low">40–50%</span></div></td>
+          <td style="color:var(--muted);font-size:12px;">Premium ENT</td>
+        </tr>
+        <tr>
+          <td><strong>Gemini Pro 1.5</strong></td><td>Google</td>
+          <td><span class="provider-badge badge-paid">PAID</span></td>
+          <td style="color:var(--amber);font-family:var(--mono);">$1.25–5.00</td>
+          <td style="font-family:var(--mono);">$2.50–8.00</td>
+          <td><div class="margin-bar-wrap"><div class="margin-bar"><div class="margin-fill mid" style="width:65%"></div></div><span class="margin-pct mid">60–65%</span></div></td>
+          <td style="color:var(--muted);font-size:12px;">Long docs</td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Cost chart + Tier panel -->
+  <div class="two-col fade-in">
+    <div class="panel">
+      <div class="panel-title">🔬 Cost to Serve — Per 100K Tokens</div>
+      <div class="cost-chart">
+        <div class="cost-row"><div class="cost-label">Groq (Free)</div><div class="cost-track"><div class="cost-fill" style="width:0.5%;background:var(--neon);color:var(--bg);">$0</div></div><div class="cost-val" style="color:var(--neon);">$0.00</div></div>
+        <div class="cost-row"><div class="cost-label">OpenRouter Free</div><div class="cost-track"><div class="cost-fill" style="width:0.5%;background:var(--neon);"></div></div><div class="cost-val" style="color:var(--neon);">$0.00</div></div>
+        <div class="cost-row"><div class="cost-label">Gemini Flash</div><div class="cost-track"><div class="cost-fill" style="width:0.5%;background:var(--neon);"></div></div><div class="cost-val" style="color:var(--neon);">$0.00</div></div>
+        <div class="cost-row"><div class="cost-label">Ollama Local</div><div class="cost-track"><div class="cost-fill" style="width:3%;background:var(--purple);">$0.003</div></div><div class="cost-val" style="color:var(--purple);">$0.003</div></div>
+        <div class="cost-row"><div class="cost-label">GPT-4o Mini</div><div class="cost-track"><div class="cost-fill" style="width:15%;background:var(--cyan);color:var(--bg);">$0.015</div></div><div class="cost-val" style="color:var(--cyan);">$0.015</div></div>
+        <div class="cost-row"><div class="cost-label">Gemini Pro</div><div class="cost-track"><div class="cost-fill" style="width:25%;background:var(--amber);color:var(--bg);">$0.035</div></div><div class="cost-val" style="color:var(--amber);">$0.035</div></div>
+        <div class="cost-row"><div class="cost-label">GPT-4o</div><div class="cost-track"><div class="cost-fill" style="width:60%;background:var(--amber);color:var(--bg);">$0.25</div></div><div class="cost-val" style="color:var(--amber);">$0.25</div></div>
+        <div class="cost-row"><div class="cost-label">Claude Sonnet</div><div class="cost-track"><div class="cost-fill" style="width:85%;background:var(--red);color:white;">$0.30</div></div><div class="cost-val" style="color:var(--red);">$0.30</div></div>
+      </div>
+    </div>
+    <div class="panel">
+      <div class="panel-title">💡 TIER STRUCTURE — v7.1 ($1 = 10cr @ $0.10/cr)</div>
+      <div class="tier-row free">
+        <div class="tier-icon free">🚀</div>
+        <div>
+          <div class="tier-name free">STARTER — $9/mo</div>
+          <div class="tier-price">90 credits · face value $9.00</div>
+          <div class="tier-details">Models: Groq Llama 8B, Gemini Flash only<br>
+          Collect $9 · API cost ~$0 · Net: <strong style="color:var(--neon)">~$8.75 (97%)</strong><br>
+          Overage: $0.10/cr · Deploy: 5cr per push</div>
+        </div>
+      </div>
+      <div class="tier-row pro">
+        <div class="tier-icon pro">⚡</div>
+        <div>
+          <div class="tier-name pro">PRO — $29/mo</div>
+          <div class="tier-price">150 credits · face value $15.00</div>
+          <div class="tier-details">Models: Llama 70B, Gemini Flash/Pro, Mistral<br>
+          Collect $29 · API cost ~$0 · Net: <strong style="color:var(--cyan)">~$28 (97%)</strong><br>
+          Overage: $0.10/cr · Agent actions: 1cr/step</div>
+        </div>
+      </div>
+      <div class="tier-row ent">
+        <div class="tier-icon ent">🏢</div>
+        <div>
+          <div class="tier-name ent">ENTERPRISE — $99/mo</div>
+          <div class="tier-price">600 credits · face value $60.00</div>
+          <div class="tier-details">Models: ALL + GPT-4o, Claude Sonnet, Gemini Pro<br>
+          Collect $99 · Paid blend ~$8–15 · Net: <strong style="color:var(--purple)">~$84–91 (87%)</strong><br>
+          Overage: $0.10/cr · Priority routing</div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Credit economy table -->
+  <div class="section-title">CREDIT ECONOMY — WHAT USERS GET VS WHAT YOU PAY</div>
+  <div class="table-wrapper fade-in" style="margin-bottom:40px;">
+    <table>
+      <thead>
+        <tr><th>Tier</th><th>Monthly Fee</th><th>Credits</th><th>Face Value</th><th>API Cost</th><th>Net Profit/User</th><th>Margin</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong style="color:var(--neon)">STARTER</strong></td>
+          <td style="font-family:var(--mono);color:var(--neon);">$9.00</td>
+          <td style="font-family:var(--mono);">90 cr</td>
+          <td style="font-family:var(--mono);color:var(--muted);">$9.00</td>
+          <td style="font-family:var(--mono);color:var(--neon);">~$0.00</td>
+          <td style="font-family:var(--mono);color:var(--neon);font-size:15px;font-weight:700;">$8.50</td>
+          <td><div class="margin-bar-wrap"><div class="margin-bar"><div class="margin-fill high" style="width:94%"></div></div><span class="margin-pct high">94%</span></div></td>
+        </tr>
+        <tr>
+          <td><strong style="color:var(--cyan)">PRO</strong></td>
+          <td style="font-family:var(--mono);color:var(--cyan);">$29.00</td>
+          <td style="font-family:var(--mono);">150 cr</td>
+          <td style="font-family:var(--mono);color:var(--muted);">$15.00</td>
+          <td style="font-family:var(--mono);color:var(--neon);">~$0.00</td>
+          <td style="font-family:var(--mono);color:var(--cyan);font-size:15px;font-weight:700;">$28.50</td>
+          <td><div class="margin-bar-wrap"><div class="margin-bar"><div class="margin-fill high" style="width:98%"></div></div><span class="margin-pct high">97%</span></div></td>
+        </tr>
+        <tr>
+          <td><strong style="color:var(--purple)">ENTERPRISE</strong></td>
+          <td style="font-family:var(--mono);color:var(--purple);">$99.00</td>
+          <td style="font-family:var(--mono);">600 cr</td>
+          <td style="font-family:var(--mono);color:var(--muted);">$60.00</td>
+          <td style="font-family:var(--mono);color:var(--amber);">~$8–15</td>
+          <td style="font-family:var(--mono);color:var(--purple);font-size:15px;font-weight:700;">$84–91</td>
+          <td><div class="margin-bar-wrap"><div class="margin-bar"><div class="margin-fill mid" style="width:88%"></div></div><span class="margin-pct mid">87%</span></div></td>
+        </tr>
+        <tr style="background:rgba(0,255,136,0.03);">
+          <td><strong style="color:var(--amber)">OVERAGE</strong></td>
+          <td style="font-family:var(--mono);color:var(--amber);">$0.10/cr</td>
+          <td style="font-family:var(--mono);">Pay-as-you-go</td>
+          <td style="font-family:var(--mono);color:var(--muted);">$0.10/cr</td>
+          <td style="font-family:var(--mono);color:var(--neon);">~$0.00</td>
+          <td style="font-family:var(--mono);color:var(--amber);font-size:15px;font-weight:700;">$0.09–0.10</td>
+          <td><div class="margin-bar-wrap"><div class="margin-bar"><div class="margin-fill high" style="width:95%"></div></div><span class="margin-pct high">~95%</span></div></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Revenue projections -->
+  <div class="section-title">MONTHLY REVENUE SCENARIOS — NO FREE TIER · ALL PAYING</div>
+  <div class="scenario-grid fade-in">
+    <div class="scenario-card">
+      <div class="scenario-label">🌱 Early Traction</div>
+      <div class="scenario-users">100 users · 60 STARTER · 30 PRO · 10 ENT</div>
+      <div class="scenario-revenue">$2,280/mo</div>
+      <div class="scenario-profit">Profit: ~$2,105 (92% margin)</div>
+      <div class="scenario-breakdown">
+        60 × $9 STARTER = <span>$540</span><br>
+        30 × $29 PRO = <span>$870</span><br>
+        10 × $99 ENT = <span>$990</span><br>
+        API cost (free stack) = <span>~$10</span><br>
+        Vercel + Supabase = <span>~$25</span><br>
+        ENT paid model cost = <span>~$80</span>
+      </div>
+    </div>
+    <div class="scenario-card featured">
+      <div class="scenario-label">🚀 Growth Stage</div>
+      <div class="scenario-users">500 users · 250 STARTER · 180 PRO · 70 ENT</div>
+      <div class="scenario-revenue">$14,580/mo</div>
+      <div class="scenario-profit">Profit: ~$13,330 (91% margin)</div>
+      <div class="scenario-breakdown">
+        250 × $9 STARTER = <span>$2,250</span><br>
+        180 × $29 PRO = <span>$5,220</span><br>
+        70 × $99 ENT = <span>$6,930</span><br>
+        API cost (free stack) = <span>~$50</span><br>
+        ENT paid model cost = <span>~$700</span><br>
+        Vercel + Supabase = <span>~$100</span>
+      </div>
+    </div>
+    <div class="scenario-card">
+      <div class="scenario-label">🏆 Scale Stage</div>
+      <div class="scenario-users">2,000 users · 900 STARTER · 800 PRO · 300 ENT</div>
+      <div class="scenario-revenue">$60,300/mo</div>
+      <div class="scenario-profit">Profit: ~$54,200 (90% margin)</div>
+      <div class="scenario-breakdown">
+        900 × $9 STARTER = <span>$8,100</span><br>
+        800 × $29 PRO = <span>$23,200</span><br>
+        300 × $99 ENT = <span>$29,700</span><br>
+        ENT paid API cost = <span>~$4,500</span><br>
+        Vercel + infra = <span>~$600</span><br>
+        Supabase + ops = <span>~$300</span>
+      </div>
+    </div>
+  </div>
+
+  <div class="alert fade-in">
+    <div class="alert-icon">⚡</div>
+    <div class="alert-body">
+      <strong>CRITICAL INSIGHT —</strong> Eliminating the free tier is your biggest revenue unlock. Every STARTER user pays <strong>$9/mo minimum</strong> — on free APIs that's <strong>$8.50 pure profit per seat</strong>. The credit system creates a natural upsell loop: STARTER → PRO → ENTERPRISE. <strong>No user ever costs you money.</strong> At 2,000 paid users you're clearing <strong>$54K/mo (~$648K ARR)</strong> — on a free-API stack that costs under $6K to run.
+    </div>
+  </div>
+
+  <!-- Top-up packs -->
+  <div class="section-title">CREDIT TOP-UP PACKS — PURE REVENUE EVENTS</div>
+  <div class="table-wrapper fade-in" style="margin-bottom:40px;">
+    <table>
+      <thead>
+        <tr><th>Pack</th><th>Price</th><th>Credits</th><th>Effective Rate</th><th>Your Cost</th><th>Your Profit</th><th>Margin</th></tr>
+      </thead>
+      <tbody>
+        <tr>
+          <td><strong>Micro Pack</strong></td>
+          <td style="font-family:var(--mono);color:var(--neon);">$5</td>
+          <td style="font-family:var(--mono);">55 cr <span style="color:var(--muted);font-size:11px;">(+10% bonus)</span></td>
+          <td style="font-family:var(--mono);color:var(--muted);">$0.091/cr</td>
+          <td style="font-family:var(--mono);color:var(--neon);">~$0.00</td>
+          <td style="font-family:var(--mono);color:var(--neon);font-weight:700;">$5.00</td>
+          <td><span class="margin-pct high">~100%</span></td>
+        </tr>
+        <tr>
+          <td><strong>Builder Pack</strong></td>
+          <td style="font-family:var(--mono);color:var(--cyan);">$10</td>
+          <td style="font-family:var(--mono);">115 cr <span style="color:var(--muted);font-size:11px;">(+15% bonus)</span></td>
+          <td style="font-family:var(--mono);color:var(--muted);">$0.087/cr</td>
+          <td style="font-family:var(--mono);color:var(--neon);">~$0.00</td>
+          <td style="font-family:var(--mono);color:var(--cyan);font-weight:700;">$10.00</td>
+          <td><span class="margin-pct high">~100%</span></td>
+        </tr>
+        <tr>
+          <td><strong>Power Pack</strong></td>
+          <td style="font-family:var(--mono);color:var(--purple);">$25</td>
+          <td style="font-family:var(--mono);">300 cr <span style="color:var(--muted);font-size:11px;">(+20% bonus)</span></td>
+          <td style="font-family:var(--mono);color:var(--muted);">$0.083/cr</td>
+          <td style="font-family:var(--mono);color:var(--neon);">~$0.00</td>
+          <td style="font-family:var(--mono);color:var(--purple);font-weight:700;">$25.00</td>
+          <td><span class="margin-pct high">~100%</span></td>
+        </tr>
+        <tr>
+          <td><strong>Studio Pack</strong></td>
+          <td style="font-family:var(--mono);color:var(--amber);">$50</td>
+          <td style="font-family:var(--mono);">650 cr <span style="color:var(--muted);font-size:11px;">(+30% bonus)</span></td>
+          <td style="font-family:var(--mono);color:var(--muted);">$0.077/cr</td>
+          <td style="font-family:var(--mono);color:var(--amber);">~$1–3</td>
+          <td style="font-family:var(--mono);color:var(--amber);font-weight:700;">$47–49</td>
+          <td><span class="margin-pct mid">94–98%</span></td>
+        </tr>
+      </tbody>
+    </table>
+  </div>
+
+  <!-- Recommendations -->
+  <div class="section-title">PRICING OPTIMIZATIONS — NEXT MOVES</div>
+  <div class="two-col fade-in">
+    <div class="panel">
+      <div class="panel-title">📈 Revenue Multipliers</div>
+      <ul class="rec-list">
+        <li><span class="rec-num">01</span>Every agent sub-task (Architect, Researcher, Coder) burns <strong>1 credit ($0.10)</strong> as a flat action fee on top of token cost. A 7-agent pipeline = 7cr minimum per run — pure margin on free APIs.</li>
+        <li><span class="rec-num">02</span>Deploy fee: <strong>5 credits ($0.50)</strong> per Vercel push. Users deploy often — this can add $5–15/mo per active PRO user with zero API cost.</li>
+        <li><span class="rec-num">03</span><strong>Credit Expiry</strong>: monthly credits expire in 30 days. No rollover — prevents credit liability on your balance sheet.</li>
+        <li><span class="rec-num">04</span>Annual billing: <strong>2 months free</strong> (10 months price). Locks in 10× monthly ARR upfront for infra investment.</li>
+      </ul>
+    </div>
+    <div class="panel">
+      <div class="panel-title">⚙️ Model Routing Strategy</div>
+      <ul class="rec-list">
+        <li><span class="rec-num">01</span>STARTER → Groq Llama 8B + Gemini Flash only. Zero cost, fast enough for simple tasks. Makes PRO feel like a genuine upgrade.</li>
+        <li><span class="rec-num">02</span>Use <strong>Ollama self-hosted</strong> on $40/mo GPU VPS (RunPod / Hetzner) for PRO volume — no rate limits, no cold starts.</li>
+        <li><span class="rec-num">03</span>Rotate <strong>3+ OpenRouter free-tier API keys</strong> to 3× your effective quota before hitting paid endpoints.</li>
+        <li><span class="rec-num">04</span>Gate GPT-4o, Claude Sonnet, Gemini Pro behind <strong>ENTERPRISE only</strong> — the anchor that justifies $99/mo.</li>
+      </ul>
+    </div>
+  </div>
+
+</div>
+
+<footer class="footer">
+  <div class="footer-left">PROJECT NEXUS v7.1 · REVENUE INTELLIGENCE · BUILDORA STACK</div>
+  <div class="uptime"><div class="pulse"></div> ALL MARGINS AT CURRENT 2026 MODEL PRICING</div>
+</footer>
+
+<script>
+  const plans = {
+    STARTER: { color: '#00ff88', label: 'STARTER — $9/mo', btn: 'neon' },
+    PRO:     { color: '#00d4ff', label: 'PRO — $29/mo', btn: 'cyan' },
+    ENTERPRISE: { color: '#9d4edd', label: 'ENTERPRISE — $99/mo', btn: 'purple' }
+  };
+
+  function selectPlan(plan) {
+    document.querySelectorAll('.cta-plan').forEach(p => p.style.opacity = '0.5');
+    const key = plan.toUpperCase() === 'ENTERPRISE' ? 'enterprise' : plan.toLowerCase();
+    document.querySelector(`.cta-plan.${key}`).style.opacity = '1';
+    const ctaAction = document.getElementById('cta-action');
+    const ctaLink = document.getElementById('cta-link');
+    ctaLink.textContent = `GET STARTED WITH ${plans[plan].label} →`;
+    ctaLink.className = `cta-btn ${plans[plan].btn}`;
+    const apiBase = window.NEXUS_API || 'https://nexus-backend.onrender.com/api/v1';
+    ctaLink.href = `${apiBase}/auth/register?plan=${plan}`;
+    ctaAction.style.display = 'block';
+  }
+</script>
+</body>
+</html>
