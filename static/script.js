@@ -424,8 +424,8 @@ $('btn-magic-build').onclick = async () => {
   // UI Setup
   $('magic-progress-wrap').style.display = 'block';
   $('magic-steps').innerHTML = '';
-  clearTerminal('magic-terminal', 'Establishing Nexus uplink...');
-  $('magic-status-text').textContent = "AUTONOMOUS BUILD IN PROGRESS";
+  clearTerminal('magic-terminal', 'Establishing PRODUCTION Nexus uplink...');
+  $('magic-status-text').textContent = "AUTONOMOUS PRODUCTION BUILD IN PROGRESS";
   
   const stepEls = {};
   Object.keys(MAGIC_STEPS).forEach(key => {
@@ -706,7 +706,7 @@ function initMonaco() {
   if (monacoEditor) return;
   require(['vs/editor/editor.main'], function () {
     monacoEditor = monaco.editor.create($('editor-wrap'), {
-      value: '// Project Nexus v9.0\nconst res = await ai.chat.complete({ messages: [{role:"user", content:"Hi!"}] });\nconsole.log(res);',
+      value: '// Project Nexus v10.3 PRODUCTION\nconst res = await ai.chat.complete({ messages: [{role:"user", content:"Hi!"}] });\nconsole.log(res);',
       language: 'javascript', theme: 'vs-dark', automaticLayout: true
     });
   });
