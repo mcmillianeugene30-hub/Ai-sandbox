@@ -5,8 +5,8 @@ import { UserDB } from "../users/db";
 export const assets = api.static({
     expose: true,
     path: "/!path",
-    dir: "../static",
-    notFound: "../static/index.html"
+    dir: "static",
+    notFound: "static/index.html"
 });
 
 // ─── WORKSPACES ──────────────────────────────────────────────────────────────
