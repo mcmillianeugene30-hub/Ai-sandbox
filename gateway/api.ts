@@ -1,7 +1,25 @@
 import { api } from "encore.dev/api";
 import { UserDB } from "../users/db";
+import * as fs from "fs/promises";
+import * as path from "path";
 
 // ─── STATIC FRONTEND ─────────────────────────────────────────────────────────
+// Explicit root handler to ensure the dashboard always loads
+export const index = api.raw(
+    { method: "GET", path: "/", expose: true },
+    async (req, resp) => {
+        const filePath = path.join(__dirname, "static", "index.html");
+        try {
+            const content = await fs.readFile(filePath);
+            resp.setHeader("Content-Type", "text/html");
+            resp.end(content);
+        } catch (err) {
+            resp.statusCode = 500;
+            resp.end("Error loading dashboard index.html");
+        }
+    }
+);
+
 export const assets = api.static({
     expose: true,
     path: "/!path",

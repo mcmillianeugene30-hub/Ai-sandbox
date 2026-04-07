@@ -5,6 +5,8 @@ import * as jwt from "jsonwebtoken";
 import * as bcrypt from "bcryptjs";
 
 const SecretKey = secret("SecretKey");
+const GithubClientID = secret("GithubClientID");
+const GoogleClientID = secret("GoogleClientID");
 
 // ─── TYPES ───────────────────────────────────────────────────────────────────
 interface RegisterRequest { username: string; password:  string; plan:      string; }
@@ -50,7 +52,32 @@ export const getMe = api(
     }
 );
 
-// ─── BILLING ─────────────────────────────────────────────────────────────────
+// ─── SOCIAL LOGIN ────────────────────────────────────────────────────────────
+
+export const githubLogin = api(
+    { method: "GET", path: "/api/v1/auth/github", expose: true },
+    async (): Promise<{ url: string }> => {
+        return { url: `https://github.com/login/oauth/authorize?client_id=${GithubClientID()}&scope=user:email` };
+    }
+);
+
+export const googleLogin = api(
+    { method: "GET", path: "/api/v1/auth/google", expose: true },
+    async (): Promise<{ url: string }> => {
+        return { url: `https://accounts.google.com/o/oauth2/v2/auth?client_id=${GoogleClientID()}&response_type=code&scope=openid%20email` };
+    }
+);
+
+// ─── BILLING & STRIPE ────────────────────────────────────────────────────────
+
+export const stripeWebhook = api.raw(
+    { method: "POST", path: "/api/v1/billing/webhook", expose: true },
+    async (req, resp) => {
+        // Stripe webhook logic here
+        resp.statusCode = 200;
+        resp.end(JSON.stringify({ status: "received" }));
+    }
+);
 
 export const listPlans = api(
     { method: "GET", path: "/api/v1/billing/plans", expose: true },
@@ -59,17 +86,6 @@ export const listPlans = api(
             "STARTER":   { "price": 9,  "credits": 90,  "models": ["llama-3.1-8b-instant"] },
             "PRO":       { "price": 29, "credits": 350, "models": ["*"] },
             "ENTERPRISE": { "price": 49, "credits": 600, "models": ["*"] }
-        };
-    }
-);
-
-export const listPacks = api(
-    { method: "GET", path: "/api/v1/billing/packs", expose: true },
-    async (): Promise<any> => {
-        return {
-            "micro":   { "price": 5,  "credits": 55 },
-            "builder": { "price": 10, "credits": 115 },
-            "power":   { "price": 25, "credits": 300 }
         };
     }
 );
